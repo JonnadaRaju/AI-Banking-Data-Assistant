@@ -1,47 +1,108 @@
-import sqlite3
 import logging
 from contextlib import contextmanager
-from pathlib import Path
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
-from backend.config import DATABASE_PATH
+import httpx
+
+from backend.config import (
+    DB_CONNECT_TIMEOUT_SECONDS,
+    REST_DB_TIMEOUT_SECONDS,
+    SUPABASE_DB_URL,
+    SUPABASE_KEY,
+    SUPABASE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
 
+def has_rest_config() -> bool:
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
+
+def can_use_direct_connection() -> bool:
+    if not SUPABASE_DB_URL:
+        return False
+    try:
+        import psycopg  # noqa: F401
+        return True
+    except ModuleNotFoundError:
+        return False
+
+
+def validate_direct_db_url() -> None:
+    if not SUPABASE_DB_URL:
+        return
+
+    parsed = urlsplit(SUPABASE_DB_URL)
+    if parsed.hostname and "@" in parsed.hostname:
+        raise RuntimeError(
+            "SUPABASE_DB_URL appears invalid. If your password contains special characters "
+            "like '@', URL-encode it (for example '@' -> '%40')."
+        )
+
+
+def normalize_direct_db_url() -> str:
+    if not SUPABASE_DB_URL:
+        return ""
+
+    parsed = urlsplit(SUPABASE_DB_URL)
+    if not parsed.scheme.startswith("postgres"):
+        return SUPABASE_DB_URL
+
+    if parsed.username is None or parsed.password is None:
+        return SUPABASE_DB_URL
+
+    username = quote(unquote(parsed.username), safe="")
+    password = quote(unquote(parsed.password), safe="")
+
+    host = parsed.hostname or ""
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+
+    host_port = host
+    if parsed.port is not None:
+        host_port = f"{host}:{parsed.port}"
+
+    netloc = f"{username}:{password}@{host_port}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+
+
 def init_database() -> None:
-    schema_path = Path(__file__).parent / "schema.sql"
-    seed_path   = Path(__file__).parent / "seed.sql"
+    if can_use_direct_connection():
+        logger.info("Using Supabase Postgres via direct DB URL.")
+    elif has_rest_config():
+        logger.info("Using Supabase REST API mode.")
+    elif SUPABASE_DB_URL:
+        logger.warning("SUPABASE_DB_URL is set, but psycopg is not installed.")
+    else:
+        logger.warning("Supabase configuration missing.")
 
-    with get_connection() as conn:
-        # Step 1: Create tables
-        if schema_path.exists():
-            with open(schema_path, "r") as f:
-                conn.executescript(f.read())
-            logger.info("Database schema loaded successfully.")
-        else:
-            raise FileNotFoundError(f"schema.sql not found at {schema_path}")
 
-        # Step 2: Seed only if table is empty
-        cursor = conn.execute("SELECT COUNT(*) FROM customers")
-        count  = cursor.fetchone()[0]
-
-        if count == 0 and seed_path.exists():
-            with open(seed_path, "r") as f:
-                conn.executescript(f.read())
-            logger.info("Seed data loaded successfully.")
-        elif count > 0:
-            logger.info(f"Database already has {count} customers. Skipping seed.")
-        else:
-            logger.warning("seed.sql not found. Database will be empty.")
+def use_supabase_rest() -> bool:
+    return has_rest_config() and not can_use_direct_connection()
 
 
 @contextmanager
 def get_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
+    if not SUPABASE_DB_URL:
+        raise RuntimeError("SUPABASE_DB_URL is required for direct Postgres connections.")
+    validate_direct_db_url()
 
+    try:
+        import psycopg
+    except ModuleNotFoundError as exc:
+        if has_rest_config():
+            raise RuntimeError(
+                "psycopg is not installed for direct mode, but REST mode is available. "
+                "Use SUPABASE_URL + SUPABASE_KEY."
+            ) from exc
+        raise RuntimeError(
+            "psycopg is not installed. Install with: pip install \"psycopg[binary]>=3.2.0\" "
+            "or configure SUPABASE_URL + SUPABASE_KEY for REST mode."
+        ) from exc
+
+    db_url = normalize_direct_db_url()
+    conn = psycopg.connect(db_url, connect_timeout=DB_CONNECT_TIMEOUT_SECONDS)
     try:
         yield conn
         conn.commit()
@@ -55,9 +116,23 @@ def get_connection():
 
 def check_connection() -> bool:
     try:
+        if use_supabase_rest():
+            response = httpx.get(
+                f"{SUPABASE_URL}/rest/v1/customers",
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                },
+                params={"limit": 1},
+                timeout=REST_DB_TIMEOUT_SECONDS,
+            )
+            return response.status_code == 200
+
         with get_connection() as conn:
-            conn.execute("SELECT 1")
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
         return True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(f"Supabase health check failed: {e}")
         return False
