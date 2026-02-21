@@ -18,7 +18,7 @@ The core idea is a 3-layer pipeline:
 
 2. **Security Layer** — Every AI-generated SQL query is validated before execution. Only SELECT statements are allowed. Any query containing INSERT, UPDATE, DELETE, DROP, or other harmful keywords is blocked immediately and never reaches the database.
 
-3. **Data Layer** — The validated SQL executes against a SQLite database containing customers, accounts, and transactions. Results are returned as structured JSON and displayed on the frontend as a table or Chart.js visualization.
+3. **Data Layer** — The validated SQL executes against a Supabase PostgreSQL database containing customers, accounts, and transactions. Results are returned as structured JSON and displayed on the frontend as a table or Chart.js visualization.
 
 ---
 
@@ -43,7 +43,7 @@ Validator (validator.py)
         │  Blocks INSERT / UPDATE / DELETE / DROP / ALTER
         ▼
 DB Service (db_service.py)
-        │  Executes validated SQL against banking.db (SQLite)
+        │  Executes validated SQL against Supabase Postgres
         │  Returns column names + rows + optional chart data
         ▼
 FastAPI Response
@@ -62,7 +62,7 @@ Frontend renders results
 ### Backend
 - Python 3.13
 - FastAPI
-- SQLite
+- Supabase Postgres
 - OpenAI API (chat completions)
 - Configurable model (default `gpt-4o-mini`)
 
