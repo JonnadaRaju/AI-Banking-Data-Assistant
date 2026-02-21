@@ -106,7 +106,7 @@ def query_to_sql(user_query: str) -> str:
                 raise Exception("AI model returned an empty response.")
 
             sql = clean_sql(raw_sql)
-            logger.info(f"Generated SQL: {sql}")
+            logger.info("SQL query generated successfully.")
             return sql
 
         except openai.RateLimitError:
