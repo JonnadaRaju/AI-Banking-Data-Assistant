@@ -106,7 +106,12 @@ async function handleRecordingStop() {
         let queryForBackend = userQuery;
         if (originalQueryLanguage !== 'en-IN' && userQuery) {
             setVoiceStatus("Translating to English...", false);
-            queryForBackend = await translateText(userQuery, 'en-IN');
+            try {
+                queryForBackend = await translateText(userQuery, 'en-IN');
+            } catch (translateError) {
+                console.warn("Translation failed, using original transcript:", translateError);
+                setVoiceStatus("Translation failed. Trying original query...", true);
+            }
         }
 
         // 3. Submit to backend
@@ -348,35 +353,87 @@ async function translateText(text, targetLanguage) {
         throw new Error("Sarvam AI API key or Translate endpoint is not configured.");
     }
 
-    const response = await fetch(config.TRANSLATE_ENDPOINT, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${config.API_KEY}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
+    const payloadVariants = [
+        {
             text: text,
-            target_language: targetLanguage
-            // The source_language might be an optional parameter.
-            // If the STT service provides it, we could pass it here.
-            // source_language: originalQueryLanguage 
-        })
-    });
+            target_language: targetLanguage,
+            source_language: originalQueryLanguage
+        },
+        {
+            input: text,
+            target_language: targetLanguage,
+            source_language: originalQueryLanguage
+        },
+        {
+            text: text,
+            target_language_code: targetLanguage,
+            source_language_code: originalQueryLanguage
+        }
+    ];
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Translate API Error:", errorBody);
-        throw new Error(`Translation API request failed: ${response.statusText}`);
+    let lastError = null;
+    for (const payload of payloadVariants) {
+        try {
+            const response = await fetch(config.TRANSLATE_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${config.API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                console.error("Translate API Error:", errorBody);
+                lastError = new Error(`Translation API request failed: ${response.status} ${response.statusText}`);
+                if (response.status === 401) {
+                    throw lastError;
+                }
+                continue;
+            }
+
+            const result = await response.json();
+            const translated = extractTranslatedText(result);
+            if (!translated) {
+                lastError = new Error("Received an invalid response from the Translate API.");
+                continue;
+            }
+            return translated;
+        } catch (error) {
+            lastError = error;
+            if (String(error.message || "").includes("401")) {
+                throw error;
+            }
+        }
     }
 
-    const result = await response.json();
+    throw lastError || new Error("Translation failed. Please try again.");
+}
 
-    // Assuming the API returns a response like: { "translated_text": "..." }
-    if (!result || !result.translated_text) {
-        throw new Error("Received an invalid response from the Translate API.");
+function extractTranslatedText(result) {
+    if (!result) return "";
+    if (typeof result.translated_text === "string" && result.translated_text.trim()) {
+        return result.translated_text.trim();
     }
-
-    return result.translated_text;
+    if (typeof result.translation === "string" && result.translation.trim()) {
+        return result.translation.trim();
+    }
+    if (typeof result.output === "string" && result.output.trim()) {
+        return result.output.trim();
+    }
+    if (Array.isArray(result.translations) && result.translations.length > 0) {
+        const first = result.translations[0];
+        if (typeof first === "string" && first.trim()) return first.trim();
+        if (first && typeof first.text === "string" && first.text.trim()) return first.text.trim();
+        if (first && typeof first.translated_text === "string" && first.translated_text.trim()) {
+            return first.translated_text.trim();
+        }
+    }
+    if (result.data && typeof result.data.translated_text === "string" && result.data.translated_text.trim()) {
+        return result.data.translated_text.trim();
+    }
+    return "";
 }
 
 async function speakText(textToSpeak) {
