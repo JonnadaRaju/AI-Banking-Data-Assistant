@@ -1,10 +1,12 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import JSONResponse
 
 from backend.config import validate_config
 from backend.database.connection import init_database
+from backend.routes.query import router as query_router
+
 
 
 logging.basicConfig(
@@ -40,6 +42,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
     
     
+app.include_router(query_router)
+
 @app.get("/")
 async def root():
     return {"message": "AI Banking Data Assistant", "status": "running", "docs": "/docs"}
