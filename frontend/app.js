@@ -1,5 +1,4 @@
 const API_URL = "http://127.0.0.1:8000";
-const REQUEST_TIMEOUT_MS = 45000;
 let chartInstance = null;
 let lastData = null;
 
@@ -66,15 +65,12 @@ async function submitQuery() {
     setLoading(true);
     hideError();
     hideResults();
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_query: userQuery }),
-            signal: controller.signal
+            body: JSON.stringify({ user_query: userQuery })
         });
 
         if (!response.ok) throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -87,74 +83,84 @@ async function submitQuery() {
             generateSummary(userQuery, data);
         }
     } catch (err) {
-        if (err.name === "AbortError") {
-            showError(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds. Please try again.`);
-        } else if (err.name === "TypeError" && err.message.includes("fetch")) {
+        if (err.name === "TypeError" && err.message.includes("fetch")) {
             showError("Cannot connect to the backend server. Make sure it is running on port 8000.");
         } else {
             showError(err.message);
         }
     } finally {
-        clearTimeout(timeoutId);
         setLoading(false);
     }
 }
 
 function generateSummary(userQuery, data) {
-    if (data.row_count === 0) {
-        showSummary("No records were found matching your query.");
-        return;
-    }
+    let summaryText = "";
 
-    if (data.row_count === 1 && data.columns.length === 1) {
+    if (data.row_count === 0) {
+        summaryText = "No records were found matching your query.";
+    } else if (data.row_count === 1 && data.columns.length === 1) {
         const val = data.rows[0][0];
         const col = data.columns[0].toLowerCase();
         const formatted = (col.includes("amount") || col.includes("total") || col.includes("sum") || col.includes("balance"))
             ? "₹" + Number(val).toLocaleString("en-IN")
             : val;
-        showSummary(`The result is ${formatted}.`);
-        return;
-    }
+        summaryText = `The result is ${formatted}.`;
+    } else {
+        const colLower = data.columns.map(c => c.toLowerCase());
+        summaryText = `Found ${data.row_count} record${data.row_count !== 1 ? "s" : ""}. `;
 
-    const colLower = data.columns.map(c => c.toLowerCase());
-    let summary = `Found ${data.row_count} record${data.row_count !== 1 ? "s" : ""}. `;
+        const amountIdx = colLower.findIndex(c => c.includes("amount"));
+        if (amountIdx !== -1) {
+            const amounts = data.rows.map(r => parseFloat(r[amountIdx])).filter(v => !isNaN(v));
+            if (amounts.length > 0) {
+                const total = amounts.reduce((a, b) => a + b, 0);
+                const max = Math.max(...amounts);
+                const min = Math.min(...amounts);
+                summaryText += `Total amount: ₹${total.toLocaleString("en-IN")}. `;
+                summaryText += `Highest: ₹${max.toLocaleString("en-IN")}, Lowest: ₹${min.toLocaleString("en-IN")}. `;
+            }
+        }
 
-    const amountIdx = colLower.findIndex(c => c.includes("amount"));
-    if (amountIdx !== -1) {
-        const amounts = data.rows.map(r => parseFloat(r[amountIdx])).filter(v => !isNaN(v));
-        if (amounts.length > 0) {
-            const total = amounts.reduce((a, b) => a + b, 0);
-            const max   = Math.max(...amounts);
-            const min   = Math.min(...amounts);
-            summary += `Total amount: ₹${total.toLocaleString("en-IN")}. `;
-            summary += `Highest: ₹${max.toLocaleString("en-IN")}, Lowest: ₹${min.toLocaleString("en-IN")}. `;
+        const typeIdx = colLower.findIndex(c => c === "transaction_type" || c === "type");
+        if (typeIdx !== -1) {
+            const credits = data.rows.filter(r => r[typeIdx] === "credit").length;
+            const debits = data.rows.filter(r => r[typeIdx] === "debit").length;
+            if (credits > 0 && debits > 0) summaryText += `${credits} credit${credits !== 1 ? "s" : ""} and ${debits} debit${debits !== 1 ? "s" : ""} found.`;
+            else if (credits > 0) summaryText += `All ${credits} transactions are credits.`;
+            else if (debits > 0) summaryText += `All ${debits} transactions are debits.`;
+        }
+
+        const balanceIdx = colLower.findIndex(c => c.includes("balance"));
+        if (balanceIdx !== -1) {
+            const balances = data.rows.map(r => parseFloat(r[balanceIdx])).filter(v => !isNaN(v));
+            if (balances.length > 0) {
+                const total = balances.reduce((a, b) => a + b, 0);
+                summaryText += `Total balance: ₹${total.toLocaleString("en-IN")}.`;
+            }
         }
     }
 
-    const typeIdx = colLower.findIndex(c => c === "transaction_type" || c === "type");
-    if (typeIdx !== -1) {
-        const credits = data.rows.filter(r => r[typeIdx] === "credit").length;
-        const debits  = data.rows.filter(r => r[typeIdx] === "debit").length;
-        if (credits > 0 && debits > 0) summary += `${credits} credit${credits !== 1 ? "s" : ""} and ${debits} debit${debits !== 1 ? "s" : ""} found.`;
-        else if (credits > 0) summary += `All ${credits} transactions are credits.`;
-        else if (debits > 0) summary += `All ${debits} transactions are debits.`;
-    }
-
-    const balanceIdx = colLower.findIndex(c => c.includes("balance"));
-    if (balanceIdx !== -1) {
-        const balances = data.rows.map(r => parseFloat(r[balanceIdx])).filter(v => !isNaN(v));
-        if (balances.length > 0) {
-            const total = balances.reduce((a, b) => a + b, 0);
-            summary += `Total balance: ₹${total.toLocaleString("en-IN")}.`;
-        }
-    }
-
-    showSummary(summary);
+    showSummary(summaryText);
 }
 
-function showSummary(text) {
+async function showSummary(text) {
     summaryBox.style.display = "flex";
     summaryBox.querySelector(".summary-text").textContent = text;
+
+    // Voice Assistant Integration
+    try {
+        let textToSpeak = text;
+        // The originalQueryLanguage variable is managed in voice.js
+        if (originalQueryLanguage && originalQueryLanguage !== 'en-IN') {
+            setVoiceStatus("Translating summary for voice reply...", false);
+            textToSpeak = await translateText(text, originalQueryLanguage);
+            clearVoiceStatus();
+        }
+        await speakText(textToSpeak);
+    } catch (error) {
+        console.error("Could not generate voice reply:", error);
+        showVoiceError("Sorry, the voice reply could not be generated.");
+    }
 }
 
 function renderResults(data) {
@@ -406,3 +412,4 @@ submitBtn.addEventListener("click", submitQuery);
 queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
 
 buildChips();
+initializeVoiceAssistant();

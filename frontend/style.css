@@ -343,3 +343,44 @@ td.amount { font-family: 'Consolas', monospace; }
     line-height: 1.7;
     font-weight: 500;
 }
+
+/* --- Voice Assistant Styles --- */
+
+#voiceBtn {
+    padding: 13px 14px;
+    background: white;
+    color: #555;
+    border: 2px solid #e0e4ed;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#voiceBtn:hover {
+    border-color: #0f3460;
+    color: #0f3460;
+}
+
+#voiceBtn.recording {
+    background: #e53e3e;
+    border-color: #e53e3e;
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+.voice-status {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #555;
+    text-align: left;
+    height: 16px;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
+}
