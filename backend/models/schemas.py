@@ -23,7 +23,6 @@ class ChartData(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    sql: Optional[str] = None
     columns: list[str] = []
     rows: list[list[Any]] = []
     row_count: int = 0
