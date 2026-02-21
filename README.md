@@ -1,20 +1,70 @@
-Title:
+# AI-Powered Banking Data Assistant  
+### Enabling Natural Language Interaction with Structured Banking Data
 
-AI-Powered Banking Data Assistant
-     .Enabling Natural Language Interaction with Structured Banking Data
+---
 
-Problem Statement:
+## 📌 Problem Statement
 
-Banking systems manage large volumes of structured data across multiple relational entities such as customers, accounts, and transactions. Business teams frequently require access to operational and transactional data for monitoring, compliance, auditing, and decision-making.
-However, accessing this data typically requires technical expertise in database querying and system knowledge — creating delays and dependency on engineering teams. Non-technical stakeholders such as auditors, compliance officers, and business analysts are unable to retrieve data independently, slowing down critical decision-making processes.
-This project addresses that gap by designing and developing an AI-Powered Banking Data Assistant that allows users to retrieve banking data through natural language interaction. The system accurately interprets user queries, generates validated SQL, and retrieves correct data from a structured relational database — while ensuring secure and read-only query execution.
+Banking systems manage large volumes of structured data across multiple relational entities such as **customers**, **accounts**, and **transactions**.  
 
-Core Domain Context
+Business teams frequently require access to operational and transactional data for:
 
-The banking system includes three relational entities:
+- Monitoring operations  
+- Regulatory compliance  
+- Auditing processes  
+- Business decision-making  
 
-.Customers — individuals who hold one or more bank accounts
-.Accounts — financial accounts belonging to a customer (savings or current)
-.Transactions — credit or debit activities recorded against an account
+However, accessing this data typically requires **technical expertise in SQL querying** and deep system knowledge. This creates delays and dependency on engineering teams.
 
-The assistant must understand the relationships between these entities to correctly resolve queries that span multiple tables — for example, finding all customers who made high-value transactions this week.
+As a result, non-technical stakeholders such as:
+
+- Auditors  
+- Compliance Officers  
+- Business Analysts  
+
+are unable to independently retrieve required data, slowing down critical decision-making processes.
+
+This project addresses the gap by designing and developing an **AI-Powered Banking Data Assistant** that enables users to retrieve banking data using **natural language interaction**.
+
+The system will:
+
+- Interpret user queries written in natural language  
+- Generate **validated SQL queries**  
+- Retrieve accurate results from a structured relational database  
+- Ensure **secure and read-only query execution**
+
+---
+
+## 🏦 Core Domain Context
+
+The banking system consists of three primary relational entities:
+
+### 1. Customers
+Individuals who hold one or more bank accounts.
+
+### 2. Accounts
+Financial accounts belonging to customers, such as:
+- Savings Accounts  
+- Current Accounts  
+
+### 3. Transactions
+Credit or debit activities recorded against an account.
+
+---
+
+## 🔗 Relationship Understanding Requirement
+
+The assistant must understand relationships between entities to correctly resolve multi-table queries.
+
+**Example Query:**
+> Find all customers who made high-value transactions this week.
+
+This requires:
+- Linking **Customers → Accounts → Transactions**
+- Applying filters based on transaction value and time period
+
+---
+
+## 🎯 Project Goal
+
+Build an intelligent assistant that enables **secure, accurate, and self-service data access** for banking stakeholders through natural language queries.
