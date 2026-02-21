@@ -1,7 +1,10 @@
 import logging
 from fastapi import FastAPI, Request
+from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import JSONResponse
 
+from backend.config import validate_config
+from backend.database.connection import init_database
 
 
 logging.basicConfig(
@@ -11,7 +14,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting AI Banking Data Assistant...")
+    validate_config()           
+    init_database()             
+    logger.info("Startup complete. API is ready.")
+    yield
+    logger.info("Shutting down AI Banking Data Assistant.")
 
 app = FastAPI(
     title="AI Banking Data Assistant",
