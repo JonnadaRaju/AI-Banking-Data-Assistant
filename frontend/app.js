@@ -1,4 +1,5 @@
 const API_URL = "http://127.0.0.1:8000";
+const REQUEST_TIMEOUT_MS = 45000;
 let chartInstance = null;
 let lastData = null;
 
@@ -65,12 +66,15 @@ async function submitQuery() {
     setLoading(true);
     hideError();
     hideResults();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_query: userQuery })
+            body: JSON.stringify({ user_query: userQuery }),
+            signal: controller.signal
         });
 
         if (!response.ok) throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -83,12 +87,15 @@ async function submitQuery() {
             generateSummary(userQuery, data);
         }
     } catch (err) {
-        if (err.name === "TypeError" && err.message.includes("fetch")) {
+        if (err.name === "AbortError") {
+            showError(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds. Please try again.`);
+        } else if (err.name === "TypeError" && err.message.includes("fetch")) {
             showError("Cannot connect to the backend server. Make sure it is running on port 8000.");
         } else {
             showError(err.message);
         }
     } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
     }
 }
