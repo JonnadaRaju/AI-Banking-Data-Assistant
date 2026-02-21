@@ -46,10 +46,6 @@ CREATE TABLE transactions (
 
 
 def build_prompt(user_query: str) -> str:
-    """
-    Build the exact prompt format SQLCoder expects.
-    SQLCoder is trained on this specific format — do not change structure.
-    """
     return f"""### Instructions:
 Your task is to convert a question into a SQL query, given a SQLite database schema.
 Adhere to these rules strictly:
@@ -160,10 +156,6 @@ def query_to_sql(user_query: str) -> str:
 
 
 def _extract_sql_from_response(response: any) -> str:
-    """
-    Extract the generated SQL text from HuggingFace API response.
-    Handles both list and dict response formats.
-    """
     try:
         if isinstance(response, list) and len(response) > 0:
             item = response[0]

@@ -1,9 +1,3 @@
-"""
-services/db_service.py
-Executes validated SQL against the SQLite database.
-Returns structured results ready for JSON serialization.
-"""
-
 import logging
 from typing import Any, Optional
 
@@ -14,21 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
-    """
-    Execute a validated SELECT query and return results.
-
-    Args:
-        sql: A validated, safe SELECT statement.
-
-    Returns:
-        (columns, rows, chart_data)
-        - columns   : list of column name strings
-        - rows      : list of rows, each row is a list of values
-        - chart_data: ChartData object if query is aggregate, else None
-
-    Raises:
-        Exception: If the query fails at the database level.
-    """
     with get_connection() as conn:
         try:
             cursor = conn.execute(sql)
@@ -50,10 +29,6 @@ def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartD
 
 
 def _sanitize_rows(rows: list[list[Any]]) -> list[list[Any]]:
-    """
-    Ensure all values are JSON-serializable.
-    Converts None, bytes, and other types to safe equivalents.
-    """
     sanitized = []
     for row in rows:
         clean_row = []
@@ -71,14 +46,6 @@ def _sanitize_rows(rows: list[list[Any]]) -> list[list[Any]]:
 
 
 def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[ChartData]:
-    """
-    Detect if query results are suitable for a chart and build ChartData.
-
-    Chart is shown when:
-    - Single row with single numeric value (COUNT, SUM) → no chart, just display number
-    - Results have a text column + numeric column → bar chart
-    - Results have transaction_type grouping → bar chart
-    """
     if not rows or not columns:
         return None
 
