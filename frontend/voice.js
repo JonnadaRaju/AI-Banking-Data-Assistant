@@ -24,6 +24,9 @@ const SILENCE_CHECK_INTERVAL_MS = 150;
 const DEFAULT_STT_FALLBACK_LANGUAGES = [
     "te-IN", "hi-IN", "ta-IN", "kn-IN", "ml-IN", "bn-IN", "en-IN"
 ];
+const SUPPORTED_LANGUAGE_CODES = new Set([
+    "te-IN", "hi-IN", "ta-IN", "kn-IN", "ml-IN", "bn-IN", "en-IN"
+]);
 
 // --- Service Initialization ---
 
@@ -230,9 +233,11 @@ async function sendToSTT(audioBlob) {
     for (const language of attemptLanguages) {
         try {
             const result = await requestSTT(audioBlob, language, config);
+            const detectedLanguage = normalizeLanguageCode(result.language_code);
+            const resolvedLanguage = detectedLanguage || normalizeLanguageCode(language) || "en-IN";
             return {
                 text: result.transcript.trim(),
-                language: normalizeLanguageCode(result.language_code)
+                language: resolvedLanguage
             };
         } catch (err) {
             lastError = err;
@@ -332,7 +337,7 @@ function getSttFallbackLanguages(config) {
 
 function normalizeLanguageCode(languageCode) {
     const raw = (languageCode || "").trim();
-    if (!raw) return "en-IN";
+    if (!raw) return "";
 
     const lower = raw.toLowerCase();
     if (lower.startsWith("te")) return "te-IN";
@@ -342,7 +347,8 @@ function normalizeLanguageCode(languageCode) {
     if (lower.startsWith("ml")) return "ml-IN";
     if (lower.startsWith("bn")) return "bn-IN";
     if (lower.startsWith("en")) return "en-IN";
-    return raw;
+    if (SUPPORTED_LANGUAGE_CODES.has(raw)) return raw;
+    return "";
 }
 
 async function translateText(text, targetLanguage) {
