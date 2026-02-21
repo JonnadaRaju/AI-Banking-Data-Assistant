@@ -14,7 +14,7 @@ We built a full-stack AI-powered assistant that acts as a bridge between non-tec
 
 The core idea is a 3-layer pipeline:
 
-1. **AI Layer** — Converts the user's natural language question into a valid SQL query using HuggingFace SQLCoder, an open-source model specifically trained for text-to-SQL tasks. The full database schema is passed to the model so it understands table relationships and generates accurate JOINs.
+1. **AI Layer** — Converts the user's natural language question into a valid SQL query using an OpenAI model (configurable, default `gpt-4o-mini`). The full database schema is passed to the model so it understands table relationships and generates accurate JOINs.
 
 2. **Security Layer** — Every AI-generated SQL query is validated before execution. Only SELECT statements are allowed. Any query containing INSERT, UPDATE, DELETE, DROP, or other harmful keywords is blocked immediately and never reaches the database.
 
@@ -35,7 +35,7 @@ FastAPI Backend (main.py + routes/query.py)
         │  Pydantic validates the request
         ▼
 NLP Service (nlp_service.py)
-        │  Sends query + database schema to HuggingFace SQLCoder API
+        │  Sends query + database schema to the OpenAI API
         │  Receives back a SQL SELECT statement
         ▼
 Validator (validator.py)
@@ -63,10 +63,23 @@ Frontend renders results
 - 🔵 Python 3.13
 - 🔵 FastAPI
 - 🔵 SQLite
-- 🔵 HuggingFace Inference API
-- 🔵 defog/sqlcoder-7b-2
+- 🔵 OpenAI API (chat completions)
+- 🔵 Configurable model (default `gpt-4o-mini`)
 
 ### Frontend
 - 🔵 HTML5
 - 🔵 JavaScript
 - 🔵 Chart.js
+
+## Configuration
+
+1) Install dependencies: `pip install -r requirements.txt` (uses `openai>=1.35`).
+2) Create `.env` in the project root:
+```
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4o-mini          # optional override
+OPENAI_BASE_URL=                  # optional (e.g., Azure)
+DATABASE_PATH=banking.db          # optional override
+```
+3) Start the API: `uvicorn backend.main:app --reload`
+4) Open the frontend (e.g., serve `frontend/` with any static server) and point it at `http://localhost:8000`.
