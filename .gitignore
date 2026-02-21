@@ -1,5 +1,3 @@
-.env
-
 *.db
 *.sqlite
 
@@ -20,3 +18,5 @@ build/
 Thumbs.d
 
 .env
+.env.*
+!.env.example
