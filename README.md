@@ -47,7 +47,7 @@ DB Service (db_service.py)
         │  Returns column names + rows + optional chart data
         ▼
 FastAPI Response
-        │  Returns structured JSON { sql, columns, rows, row_count, chart_data, error }
+        │  Returns structured JSON { columns, rows, row_count, chart_data, error }
         ▼
 Frontend renders results
         │  Table for list queries
