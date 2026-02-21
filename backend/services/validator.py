@@ -1,9 +1,3 @@
-"""
-services/validator.py
-SQL safety validator — enforces read-only access to the database.
-Blocks all harmful SQL before it ever reaches the database.
-"""
-
 import re
 import logging
 
@@ -18,18 +12,6 @@ BLOCKED_KEYWORDS = [
 
 
 def validate_sql(sql: str) -> tuple[bool, str]:
-    """
-    Validate that a SQL string is safe to execute.
-
-    Returns:
-        (True, "")             — if SQL is safe
-        (False, error_message) — if SQL is blocked
-
-    Rules:
-    1. Must start with SELECT (after stripping whitespace)
-    2. Must not contain any blocked keywords
-    3. Must not contain multiple statements (semicolons mid-query)
-    """
     if not sql or not sql.strip():
         return False, "Empty SQL query received."
 
@@ -60,11 +42,6 @@ def validate_sql(sql: str) -> tuple[bool, str]:
 
 
 def clean_sql(raw_sql: str) -> str:
-    """
-    Clean up SQL returned by the AI model.
-    SQLCoder sometimes returns extra text before/after the SQL.
-    This extracts just the SELECT statement.
-    """
     if not raw_sql:
         return ""
 
@@ -77,7 +54,6 @@ def clean_sql(raw_sql: str) -> str:
 
 
 def _extract_first_statement(sql: str) -> str:
-    """Extract only the first SQL statement (stop at second semicolon or end)."""
     if ";" in sql:
         sql = sql[:sql.index(";") + 1]
     return sql.strip()
