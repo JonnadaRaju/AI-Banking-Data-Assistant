@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import validate_config
 from backend.database.connection import init_database
@@ -27,9 +28,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Banking Data Assistant",
-    description="Natural language interface for banking data — powered by SQLCoder",
+    description="Natural language interface for banking data — powered by OpenAI",
     version="1.0.0",
     lifespan=lifespan
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost",
+        "http://localhost:3000",
+        "http://127.0.0.1",
+        "http://127.0.0.1:3000",
+        "null"          
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
