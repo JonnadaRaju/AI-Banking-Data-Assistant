@@ -1,116 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Banking Data Assistant - Frontend</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Banking Data Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.4;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        #resultsTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        #resultsTable th,
+        #resultsTable td {
+            border: 1px solid #d9d9d9;
+            padding: 10px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        #resultsTable th {
+            background: #f5f7fa;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>AI Banking Data Assistant</h1>
-    <p>Natural language to banking insights (frontend only, plain HTML + JavaScript)</p>
-  </header>
 
-  <main>
-    <section>
-      <h2>API Connection</h2>
-      <form id="health-form">
-        <label for="api-base-url">API Base URL</label>
-        <input id="api-base-url" type="url" value="http://127.0.0.1:8000" required />
-        <button type="submit">Check Health</button>
-      </form>
-      <p id="health-output">Health: not checked</p>
-    </section>
+<!-- ── Header ──────────────────────────────────────────────── -->
+<header>
+    <span class="logo">🏦</span>
+    <div>
+        <h1>AI Banking Data Assistant</h1>
+        <p>Ask questions about banking data in plain English</p>
+    </div>
+</header>
 
-    <section>
-      <h2>Ask a Question</h2>
-      <form id="query-form">
-        <label for="preset-queries">Starter questions</label>
-        <select id="preset-queries">
-          <option value="">Select a sample query</option>
-          <option value="Show all customers with their account balances">Show all customers with their account balances</option>
-          <option value="What is the total credit and debit amount in the last 7 days?">What is the total credit and debit amount in the last 7 days?</option>
-          <option value="List top 10 largest transactions this week">List top 10 largest transactions this week</option>
-          <option value="How many accounts exist by account type?">How many accounts exist by account type?</option>
-          <option value="Show customers who have fixed accounts">Show customers who have fixed accounts</option>
-        </select>
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<div class="container">
 
-        <br />
+    <!-- Query Input -->
+    <div class="query-section">
+        <h2>What would you like to know?</h2>
+        <div class="query-input-row">
+            <input
+                type="text"
+                id="queryInput"
+                placeholder="e.g. Show last 10 transactions above 10,000"
+                autocomplete="off"
+            />
+            <button id="submitBtn">Ask</button>
+        </div>
 
-        <label for="user-query">Natural language query</label>
-        <textarea id="user-query" rows="4" maxlength="500" placeholder="Example: Show top 5 customers by total credits this week" required></textarea>
+        <!-- Example chips -->
+        <div class="examples">
+            <p>Try an example:</p>
+            <div class="chips" id="chips"></div>
+        </div>
+    </div>
 
-        <br />
+    <!-- Loading -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Generating SQL and fetching results...</p>
+    </div>
 
-        <button type="submit">Run Query</button>
-        <button type="button" id="clear-button">Clear Output</button>
-      </form>
-      <p id="query-status">Status: idle</p>
-    </section>
+    <!-- Error -->
+    <div id="errorBox"></div>
 
-    <section>
-      <h2>Generated SQL</h2>
-      <pre id="sql-output">No SQL generated yet.</pre>
-    </section>
+    <!-- Results -->
+    <div id="resultsSection">
 
-    <section>
-      <h2>Dashboard Snapshot</h2>
-      <table border="1">
-        <thead>
-          <tr>
-            <th>Metric</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody id="metrics-body">
-          <tr>
-            <td>Rows Returned</td>
-            <td>0</td>
-          </tr>
-          <tr>
-            <td>Columns Returned</td>
-            <td>0</td>
-          </tr>
-          <tr>
-            <td>Numeric Columns</td>
-            <td>0</td>
-          </tr>
-          <tr>
-            <td>Amount Sum</td>
-            <td>N/A</td>
-          </tr>
-          <tr>
-            <td>Amount Average</td>
-            <td>N/A</td>
-          </tr>
-          <tr>
-            <td>Chart Data</td>
-            <td>Not available</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+        <!-- SQL box -->
+        <div class="sql-box">
+            <div class="sql-label">Generated SQL</div>
+            <code id="sqlDisplay"></code>
+        </div>
 
-    <section>
-      <h2>Chart</h2>
-      <canvas id="chart-canvas" width="920" height="320"></canvas>
-      <p id="chart-note">No chart data available for this query.</p>
-    </section>
+        <!-- Stats -->
+        <div class="stats-bar" id="statsBar"></div>
 
-    <section>
-      <h2>Query Result Table</h2>
-      <button id="download-csv" type="button" disabled>Download CSV</button>
-      <div id="table-wrapper">
-        <p>Run a query to view tabular results.</p>
-      </div>
-    </section>
+        <!-- Chart -->
+        <div id="chartContainer">
+            <h3>📊 Visual Summary</h3>
+            <canvas id="myChart"></canvas>
+        </div>
 
-    <section>
-      <h2>Raw API Response</h2>
-      <pre id="raw-output">No response yet.</pre>
-    </section>
-  </main>
+        <!-- Table -->
+        <div class="table-container" id="tableContainer">
+            <h3>Results</h3>
+            <div class="table-scroll">
+                <table id="resultsTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
 
-  <script src="./app.js"></script>
+    </div>
+    <!-- /Results -->
+
+</div>
+<!-- /Main -->
+
+<!-- Chart.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
