@@ -70,3 +70,13 @@ Frontend renders results
 - HTML5
 - JavaScript
 - Chart.js
+
+### Voice Assistant — Sarvam AI
+- **Sarvam AI Speech-to-Text (STT)** — Converts voice input to text (supports Hindi, Tamil, Telugu, Bengali, Kannada, Malayalam, English India)
+- **Sarvam AI Text-to-Speech (TTS)** — Reads query results aloud in a natural Indian voice
+- **Sarvam AI Translate API** *(optional)* — Translates regional language queries to English before LLM processing
+
+### Cache — Redis
+- **Redis** — In-memory cache for query results, reducing repeated OpenAI API calls and database hits
+- **redis-py** — Python Redis client for cache read/write operations
+- Cache TTL configurable per query type (default: 5 minutes)
