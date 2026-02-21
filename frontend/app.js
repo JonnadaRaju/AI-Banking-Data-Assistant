@@ -21,6 +21,7 @@ const tabData        = document.getElementById("tabData");
 const tabChart       = document.getElementById("tabChart");
 const panelData      = document.getElementById("panelData");
 const panelChart     = document.getElementById("panelChart");
+const summaryBox     = document.getElementById("summaryBox");
 const chipsDiv       = document.getElementById("chips");
 
 function buildChips() {
@@ -76,19 +77,77 @@ async function submitQuery() {
 
         const data = await response.json();
         if (data.error) {
-            showError(data.error);
+            showError(data.error, data.sql);
         } else {
             renderResults(data);
+            generateSummary(userQuery, data);
         }
     } catch (err) {
         if (err.name === "TypeError" && err.message.includes("fetch")) {
-            showError("Cannot connect to the backend server. Make sure it is running on port 8000.\n\nRun: uvicorn backend.main:app --reload");
+            showError("Cannot connect to the backend server. Make sure it is running on port 8000.");
         } else {
             showError(err.message);
         }
     } finally {
         setLoading(false);
     }
+}
+
+function generateSummary(userQuery, data) {
+    if (data.row_count === 0) {
+        showSummary("No records were found matching your query.");
+        return;
+    }
+
+    if (data.row_count === 1 && data.columns.length === 1) {
+        const val = data.rows[0][0];
+        const col = data.columns[0].toLowerCase();
+        const formatted = (col.includes("amount") || col.includes("total") || col.includes("sum") || col.includes("balance"))
+            ? "₹" + Number(val).toLocaleString("en-IN")
+            : val;
+        showSummary(`The result is ${formatted}.`);
+        return;
+    }
+
+    const colLower = data.columns.map(c => c.toLowerCase());
+    let summary = `Found ${data.row_count} record${data.row_count !== 1 ? "s" : ""}. `;
+
+    const amountIdx = colLower.findIndex(c => c.includes("amount"));
+    if (amountIdx !== -1) {
+        const amounts = data.rows.map(r => parseFloat(r[amountIdx])).filter(v => !isNaN(v));
+        if (amounts.length > 0) {
+            const total = amounts.reduce((a, b) => a + b, 0);
+            const max   = Math.max(...amounts);
+            const min   = Math.min(...amounts);
+            summary += `Total amount: ₹${total.toLocaleString("en-IN")}. `;
+            summary += `Highest: ₹${max.toLocaleString("en-IN")}, Lowest: ₹${min.toLocaleString("en-IN")}. `;
+        }
+    }
+
+    const typeIdx = colLower.findIndex(c => c === "transaction_type" || c === "type");
+    if (typeIdx !== -1) {
+        const credits = data.rows.filter(r => r[typeIdx] === "credit").length;
+        const debits  = data.rows.filter(r => r[typeIdx] === "debit").length;
+        if (credits > 0 && debits > 0) summary += `${credits} credit${credits !== 1 ? "s" : ""} and ${debits} debit${debits !== 1 ? "s" : ""} found.`;
+        else if (credits > 0) summary += `All ${credits} transactions are credits.`;
+        else if (debits > 0) summary += `All ${debits} transactions are debits.`;
+    }
+
+    const balanceIdx = colLower.findIndex(c => c.includes("balance"));
+    if (balanceIdx !== -1) {
+        const balances = data.rows.map(r => parseFloat(r[balanceIdx])).filter(v => !isNaN(v));
+        if (balances.length > 0) {
+            const total = balances.reduce((a, b) => a + b, 0);
+            summary += `Total balance: ₹${total.toLocaleString("en-IN")}.`;
+        }
+    }
+
+    showSummary(summary);
+}
+
+function showSummary(text) {
+    summaryBox.style.display = "flex";
+    summaryBox.querySelector(".summary-text").textContent = text;
 }
 
 function renderResults(data) {
@@ -123,11 +182,7 @@ function buildChartFromData(data) {
         chartInstance = null;
     }
 
-    let chartData = data.chart_data;
-
-    if (!chartData) {
-        chartData = buildFallbackChart(data.columns, data.rows);
-    }
+    const chartData = resolveChartData(data.columns, data.rows);
 
     if (!chartData) {
         panelChart.innerHTML = `<p style="color:#888;padding:32px;text-align:center;font-size:14px;">Chart not available for this result type.</p>`;
@@ -143,16 +198,11 @@ function buildChartFromData(data) {
                 label: "Value",
                 data: chartData.values,
                 backgroundColor: [
-                    "rgba(15,52,96,0.85)",
-                    "rgba(6,182,212,0.85)",
-                    "rgba(16,185,129,0.85)",
-                    "rgba(245,158,11,0.85)",
-                    "rgba(139,92,246,0.85)",
-                    "rgba(239,68,68,0.85)",
-                    "rgba(59,130,246,0.85)",
-                    "rgba(249,115,22,0.85)",
-                    "rgba(20,184,166,0.85)",
-                    "rgba(99,102,241,0.85)"
+                    "rgba(15,52,96,0.85)", "rgba(6,182,212,0.85)",
+                    "rgba(16,185,129,0.85)", "rgba(245,158,11,0.85)",
+                    "rgba(139,92,246,0.85)", "rgba(239,68,68,0.85)",
+                    "rgba(59,130,246,0.85)", "rgba(249,115,22,0.85)",
+                    "rgba(20,184,166,0.85)", "rgba(99,102,241,0.85)"
                 ],
                 borderRadius: 6,
                 borderWidth: 0
@@ -176,11 +226,7 @@ function buildChartFromData(data) {
                 y: {
                     beginAtZero: true,
                     grid: { color: "rgba(0,0,0,0.05)" },
-                    ticks: {
-                        callback: val => {
-                            return Number(val) >= 1000 ? "₹" + Number(val).toLocaleString("en-IN") : val;
-                        }
-                    }
+                    ticks: { callback: val => Number(val) >= 1000 ? "₹" + Number(val).toLocaleString("en-IN") : val }
                 },
                 x: { grid: { display: false } }
             }
@@ -188,39 +234,51 @@ function buildChartFromData(data) {
     });
 }
 
-function buildFallbackChart(columns, rows) {
-    const col_lower = columns.map(c => c.toLowerCase());
+function resolveChartData(columns, rows) {
+    const col = columns.map(c => c.toLowerCase());
 
-    const numericKeywords = ["amount", "balance", "total", "sum", "count", "credit", "debit"];
-    const labelKeywords   = ["type", "name", "description", "account_number", "email"];
+    const numericKeywords = ["amount", "balance", "total", "sum", "count"];
+    const nameKeywords    = ["name", "description"];
+    const typeKeywords    = ["transaction_type", "account_type", "type"];
 
-    let numIdx = null;
-    let lblIdx = null;
+    let numIdx  = null;
+    let nameIdx = null;
+    let typeIdx = null;
 
-    for (let i = 0; i < col_lower.length; i++) {
-        if (numIdx === null && numericKeywords.some(k => col_lower[i].includes(k))) numIdx = i;
-        if (lblIdx === null && labelKeywords.some(k => col_lower[i].includes(k))) lblIdx = i;
+    for (let i = 0; i < col.length; i++) {
+        if (numIdx === null && numericKeywords.some(k => col[i].includes(k))) numIdx = i;
+        if (nameIdx === null && nameKeywords.some(k => col[i].includes(k))) nameIdx = i;
+        if (typeIdx === null && typeKeywords.some(k => col[i].includes(k))) typeIdx = i;
     }
 
     if (numIdx === null) {
-        for (let i = 0; i < col_lower.length; i++) {
-            if (rows.every(r => r[i] !== null && !isNaN(Number(r[i])))) {
-                numIdx = i;
-                break;
-            }
+        for (let i = 0; i < col.length; i++) {
+            if (rows.every(r => r[i] !== null && !isNaN(Number(r[i])))) { numIdx = i; break; }
         }
     }
 
     if (numIdx === null) return null;
 
+    let lblIdx = null;
+
+    if (nameIdx !== null) {
+        lblIdx = nameIdx;
+    } else if (typeIdx !== null) {
+        lblIdx = typeIdx;
+    } else {
+        for (let i = 0; i < col.length; i++) {
+            if (i !== numIdx && rows.every(r => typeof r[i] === "string" || r[i] === null)) {
+                lblIdx = i;
+                break;
+            }
+        }
+    }
+
     const labels = lblIdx !== null
         ? rows.map(r => String(r[lblIdx] ?? "—"))
         : rows.map((_, i) => `Row ${i + 1}`);
 
-    const values = rows.map(r => {
-        const v = parseFloat(r[numIdx]);
-        return isNaN(v) ? 0 : v;
-    });
+    const values = rows.map(r => { const v = parseFloat(r[numIdx]); return isNaN(v) ? 0 : v; });
 
     return { labels, values };
 }
@@ -308,10 +366,11 @@ function setLoading(show) {
     submitBtn.textContent = show ? "Thinking..." : "Ask";
 }
 
-function showError(message) {
+function showError(message, sql = null) {
     errorBox.style.display = "block";
     errorBox.innerHTML = `
-        <strong>⚠ Error</strong><br>${escapeHtml(message)}`;
+        <strong>⚠ Error</strong><br>${escapeHtml(message)}
+        ${sql ? `<br><br><small>Generated SQL: <code>${escapeHtml(sql)}</code></small>` : ""}`;
 }
 
 function hideError() {
@@ -322,6 +381,7 @@ function hideError() {
 function hideResults() {
     lastData = null;
     resultsSection.style.display = "none";
+    summaryBox.style.display = "none";
     panelData.innerHTML = "";
     panelChart.innerHTML = "";
     tabChart.style.display = "none";
