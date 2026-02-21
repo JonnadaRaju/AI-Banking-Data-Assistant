@@ -19,4 +19,4 @@ build/
 .DS_Store
 Thumbs.d
 
-env.example
+.env
