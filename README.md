@@ -1,70 +1,72 @@
-# AI-Powered Banking Data Assistant  
-### Enabling Natural Language Interaction with Structured Banking Data
+# AI Banking Data Assistant
+
+## Problem Statement
+
+Banking systems manage large volumes of structured data across multiple relational entities such as customers, accounts, and transactions. Business teams frequently require access to operational and transactional data for monitoring, compliance, auditing, and decision-making. However, accessing this data typically requires technical expertise in database querying and system knowledge, creating delays and dependency on engineering teams.
+
+This project solves that by providing an AI-powered Banking Data Assistant that allows users to retrieve banking data through natural language interaction. The system accurately interprets user queries and retrieves correct data from a structured relational database while ensuring secure and validated execution.
 
 ---
 
-## 📌 Problem Statement
+## Solution
 
-Banking systems manage large volumes of structured data across multiple relational entities such as **customers**, **accounts**, and **transactions**.  
+We built a full-stack AI-powered assistant that acts as a bridge between non-technical business users and the banking database. Users simply type a plain English question — the system handles everything else automatically.
 
-Business teams frequently require access to operational and transactional data for:
+The core idea is a 3-layer pipeline:
 
-- Monitoring operations  
-- Regulatory compliance  
-- Auditing processes  
-- Business decision-making  
+1. **AI Layer** — Converts the user's natural language question into a valid SQL query using HuggingFace SQLCoder, an open-source model specifically trained for text-to-SQL tasks. The full database schema is passed to the model so it understands table relationships and generates accurate JOINs.
 
-However, accessing this data typically requires **technical expertise in SQL querying** and deep system knowledge. This creates delays and dependency on engineering teams.
+2. **Security Layer** — Every AI-generated SQL query is validated before execution. Only SELECT statements are allowed. Any query containing INSERT, UPDATE, DELETE, DROP, or other harmful keywords is blocked immediately and never reaches the database.
 
-As a result, non-technical stakeholders such as:
-
-- Auditors  
-- Compliance Officers  
-- Business Analysts  
-
-are unable to independently retrieve required data, slowing down critical decision-making processes.
-
-This project addresses the gap by designing and developing an **AI-Powered Banking Data Assistant** that enables users to retrieve banking data using **natural language interaction**.
-
-The system will:
-
-- Interpret user queries written in natural language  
-- Generate **validated SQL queries**  
-- Retrieve accurate results from a structured relational database  
-- Ensure **secure and read-only query execution**
+3. **Data Layer** — The validated SQL executes against a SQLite database containing customers, accounts, and transactions. Results are returned as structured JSON and displayed on the frontend as a table or Chart.js visualization.
 
 ---
 
-## 🏦 Core Domain Context
+## Working Flow
 
-The banking system consists of three primary relational entities:
-
-### 1. Customers
-Individuals who hold one or more bank accounts.
-
-### 2. Accounts
-Financial accounts belonging to customers, such as:
-- Savings Accounts  
-- Current Accounts  
-
-### 3. Transactions
-Credit or debit activities recorded against an account.
+```
+User types a natural language question in the browser
+        │
+        ▼
+Frontend (index.html + app.js)
+        │  POST /query  { "user_query": "..." }
+        ▼
+FastAPI Backend (main.py + routes/query.py)
+        │  Pydantic validates the request
+        ▼
+NLP Service (nlp_service.py)
+        │  Sends query + database schema to HuggingFace SQLCoder API
+        │  Receives back a SQL SELECT statement
+        ▼
+Validator (validator.py)
+        │  Checks SQL is read-only (SELECT only)
+        │  Blocks INSERT / UPDATE / DELETE / DROP / ALTER
+        ▼
+DB Service (db_service.py)
+        │  Executes validated SQL against banking.db (SQLite)
+        │  Returns column names + rows + optional chart data
+        ▼
+FastAPI Response
+        │  Returns structured JSON { sql, columns, rows, row_count, chart_data, error }
+        ▼
+Frontend renders results
+        │  Table for list queries
+        │  Large number for COUNT / SUM queries
+        └  Chart.js bar chart for aggregate queries
+```
 
 ---
 
-## 🔗 Relationship Understanding Requirement
+## Tech Stack
 
-The assistant must understand relationships between entities to correctly resolve multi-table queries.
+### Backend
+- 🔵 Python 3.13
+- 🔵 FastAPI
+- 🔵 SQLite
+- 🔵 HuggingFace Inference API
+- 🔵 defog/sqlcoder-7b-2
 
-**Example Query:**
-> Find all customers who made high-value transactions this week.
-
-This requires:
-- Linking **Customers → Accounts → Transactions**
-- Applying filters based on transaction value and time period
-
----
-
-## 🎯 Project Goal
-
-Build an intelligent assistant that enables **secure, accurate, and self-service data access** for banking stakeholders through natural language queries.
+### Frontend
+- 🔵 HTML5
+- 🔵 JavaScript
+- 🔵 Chart.js
