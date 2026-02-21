@@ -1,9 +1,3 @@
-"""
-services/nlp_service.py
-Converts natural language queries to SQL using HuggingFace SQLCoder API.
-This is the AI brain of the application.
-"""
-
 import time
 import logging
 import requests
@@ -12,7 +6,7 @@ from backend.config import HF_API_TOKEN, HF_API_URL, MAX_RETRIES, RETRY_DELAY
 from backend.services.validator import clean_sql
 
 logger = logging.getLogger(__name__)
-────────────────────────────────────────────
+
 DB_SCHEMA = """
 CREATE TABLE customers (
     customer_id INTEGER PRIMARY KEY,
@@ -68,20 +62,6 @@ SELECT"""
 
 
 def query_to_sql(user_query: str) -> str:
-    """
-    Send user query to HuggingFace SQLCoder and return the generated SQL.
-
-    Retries automatically if the model is loading (503 response).
-
-    Args:
-        user_query: Plain English question from the user.
-
-    Returns:
-        A SQL SELECT string.
-
-    Raises:
-        Exception: If the API fails after all retries.
-    """
     prompt = build_prompt(user_query)
     headers = {
         "Authorization": f"Bearer {HF_API_TOKEN}",
@@ -102,41 +82,30 @@ def query_to_sql(user_query: str) -> str:
             logger.info(f"Calling HuggingFace SQLCoder API (attempt {attempt}/{MAX_RETRIES})")
             response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=60)
 
-           
             if response.status_code == 503:
                 logger.warning(f"Model loading (503). Waiting {RETRY_DELAY}s before retry...")
                 if attempt < MAX_RETRIES:
                     time.sleep(RETRY_DELAY)
                     continue
                 else:
-                    raise Exception(
-                        "AI model is currently loading. Please wait 30 seconds and try again."
-                    )
+                    raise Exception("AI model is currently loading. Please wait 30 seconds and try again.")
 
             if response.status_code == 401:
-                raise Exception(
-                    "Invalid HuggingFace API token. Check your .env file."
-                )
+                raise Exception("Invalid HuggingFace API token. Check your .env file.")
 
             if response.status_code == 429:
-                raise Exception(
-                    "HuggingFace API rate limit reached. Please wait a moment and try again."
-                )
+                raise Exception("HuggingFace API rate limit reached. Please wait a moment and try again.")
 
             if response.status_code != 200:
-                raise Exception(
-                    f"HuggingFace API error {response.status_code}: {response.text[:200]}"
-                )
+                raise Exception(f"HuggingFace API error {response.status_code}: {response.text[:200]}")
 
             result = response.json()
-
             raw_sql = _extract_sql_from_response(result)
 
             if not raw_sql:
                 raise Exception("AI model returned an empty response.")
 
             sql = "SELECT " + clean_sql(raw_sql)
-
             logger.info(f"Generated SQL: {sql}")
             return sql
 
@@ -148,14 +117,12 @@ def query_to_sql(user_query: str) -> str:
             raise Exception("Request to AI model timed out. Please try again.")
 
         except requests.exceptions.ConnectionError:
-            raise Exception(
-                "Cannot connect to HuggingFace API. Check your internet connection."
-            )
+            raise Exception("Cannot connect to HuggingFace API. Check your internet connection.")
 
     raise Exception("Failed to generate SQL after maximum retries.")
 
 
-def _extract_sql_from_response(response: any) -> str:
+def _extract_sql_from_response(response) -> str:
     try:
         if isinstance(response, list) and len(response) > 0:
             item = response[0]
