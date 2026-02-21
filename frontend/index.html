@@ -32,7 +32,7 @@
 
     <div id="loading">
         <div class="spinner"></div>
-        <p>Processing request and fetching results...</p>
+        <p>Generating SQL and fetching results...</p>
     </div>
 
     <div id="errorBox"></div>
@@ -48,8 +48,13 @@
             </div>
             <div class="tab-content">
                 <div id="panelData" class="tab-panel"></div>
-                <div id="panelChart" class="tab-panel" style="display:none;padding:24px;"></div>
+                <div id="panelChart" class="tab-panel" style="display:none;"></div>
             </div>
+        </div>
+
+        <div id="summaryBox" style="display:none;">
+            <span class="summary-icon">💡</span>
+            <p class="summary-text"></p>
         </div>
 
     </div>
