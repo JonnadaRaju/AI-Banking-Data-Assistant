@@ -1,26 +1,202 @@
 import logging
+import os
+import re
+import sqlite3
 from typing import Any, Optional
 
-from backend.database.connection import get_connection
+import httpx
+
+from backend.config import (
+    DATABASE_PATH,
+    DB_STATEMENT_TIMEOUT_MS,
+    REST_DB_TIMEOUT_SECONDS,
+    SUPABASE_KEY,
+    SUPABASE_URL,
+)
+from backend.database.connection import get_connection, has_rest_config, use_supabase_rest
 from backend.models.schemas import ChartData
 
 logger = logging.getLogger(__name__)
 
 
+def _is_connection_error(error: Exception) -> bool:
+    message = str(error).lower()
+    indicators = [
+        "connection",
+        "timeout",
+        "timed out",
+        "could not connect",
+        "network",
+        "dns",
+        "name or service not known",
+    ]
+    return any(token in message for token in indicators)
+
+
+def _is_missing_run_query_rpc_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return "run_query" in message and ("missing" in message or "ensure rpc function" in message)
+
+
+def _has_sqlite_fallback() -> bool:
+    return bool(DATABASE_PATH) and os.path.exists(DATABASE_PATH)
+
+
+def _translate_postgres_to_sqlite(sql: str) -> str:
+    translated = sql
+    translated = re.sub(
+        r"CURRENT_DATE\s*-\s*INTERVAL\s*'(\d+)\s*day[s]?'",
+        r"date('now', '-\1 days')",
+        translated,
+        flags=re.IGNORECASE,
+    )
+    translated = re.sub(
+        r"CURRENT_DATE\s*\+\s*INTERVAL\s*'(\d+)\s*day[s]?'",
+        r"date('now', '+\1 days')",
+        translated,
+        flags=re.IGNORECASE,
+    )
+    translated = re.sub(r"\bCURRENT_DATE\b", "date('now')", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bNOW\(\)", "datetime('now')", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"\bILIKE\b", "LIKE", translated, flags=re.IGNORECASE)
+    translated = re.sub(r"::\s*\w+", "", translated)
+    return translated
+
+
+def _execute_query_sqlite(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
+    if not _has_sqlite_fallback():
+        raise Exception("SQLite fallback is unavailable because DATABASE_PATH file was not found.")
+
+    sqlite_sql = _translate_postgres_to_sqlite(sql)
+
+    conn = None
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute(sqlite_sql)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            raw_rows = cursor.fetchall() if cursor.description else []
+    except Exception as e:
+        logger.error(f"SQLite fallback query failed: {e}")
+        raise Exception(f"Database error (SQLite fallback): {str(e)}")
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    rows = [_row_to_list(row, columns) for row in raw_rows]
+    rows = _sanitize_rows(rows)
+    chart_data = _build_chart_data(columns, rows)
+    logger.info(f"SQLite fallback returned {len(rows)} rows with columns: {columns}")
+    return columns, rows, chart_data
+
+
 def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
+    if use_supabase_rest():
+        try:
+            return _execute_query_rest(sql)
+        except Exception as rest_error:
+            if _is_missing_run_query_rpc_error(rest_error) and _has_sqlite_fallback():
+                logger.warning("Supabase RPC `run_query` missing. Falling back to local SQLite.")
+                return _execute_query_sqlite(sql)
+            raise
+
+    try:
+        return _execute_query_direct(sql)
+    except Exception as direct_error:
+        # Fallback only for connectivity issues. Query errors should surface directly.
+        if has_rest_config() and _is_connection_error(direct_error):
+            logger.warning(f"Direct DB query failed, falling back to REST mode: {direct_error}")
+            try:
+                return _execute_query_rest(sql)
+            except Exception as rest_error:
+                if _is_missing_run_query_rpc_error(rest_error) and _has_sqlite_fallback():
+                    logger.warning("Supabase REST RPC missing. Falling back to local SQLite.")
+                    return _execute_query_sqlite(sql)
+                raise Exception(
+                    f"{direct_error} (REST fallback failed: {rest_error})"
+                ) from rest_error
+        raise
+
+
+def _execute_query_direct(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
     with get_connection() as conn:
         try:
-            cursor = conn.execute(sql)
-            columns = [description[0] for description in cursor.description]
-            raw_rows = cursor.fetchall()
-            rows = [list(row) for row in raw_rows]
+            with conn.cursor() as cursor:
+                cursor.execute(f"SET LOCAL statement_timeout = {DB_STATEMENT_TIMEOUT_MS}")
+                cursor.execute(sql)
+
+                columns = [desc.name for desc in cursor.description] if cursor.description else []
+                raw_rows = cursor.fetchall() if cursor.description else []
+
+            rows = [_row_to_list(row, columns) for row in raw_rows]
             rows = _sanitize_rows(rows)
             chart_data = _build_chart_data(columns, rows)
-            logger.info(f"Query returned {len(rows)} rows | columns: {columns} | chart: {chart_data is not None}")
+
+            logger.info(f"Query returned {len(rows)} rows with columns: {columns}")
             return columns, rows, chart_data
+
         except Exception as e:
-            logger.error(f"Query execution failed: {e}\nSQL: {sql}")
+            logger.error(f"Query execution failed: {e}")
             raise Exception(f"Database error: {str(e)}")
+
+
+def _execute_query_rest(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        raise Exception("SUPABASE_URL and SUPABASE_KEY are required for REST mode.")
+
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = httpx.post(
+            f"{SUPABASE_URL}/rest/v1/rpc/run_query",
+            headers=headers,
+            json={"sql": sql},
+            timeout=REST_DB_TIMEOUT_SECONDS,
+        )
+    except Exception as e:
+        logger.error(f"Supabase REST request failed: {e}")
+        raise Exception("Database error: cannot connect to Supabase REST API.")
+
+    if response.status_code != 200:
+        logger.error(f"Supabase REST error {response.status_code}: {response.text[:300]}")
+        if response.status_code in (404, 400) and "run_query" in response.text:
+            raise Exception(
+                "Database error: Supabase RPC function `run_query(sql text)` is missing. "
+                "Create it in Supabase SQL Editor, or use SUPABASE_DB_URL direct mode."
+            )
+        raise Exception(
+            "Database error: Supabase REST call failed. Ensure RPC function `run_query(sql text)` exists."
+        )
+
+    result = response.json()
+    if not result:
+        return [], [], None
+
+    columns = list(result[0].keys())
+    rows = [[row.get(col) for col in columns] for row in result]
+    rows = _sanitize_rows(rows)
+    chart_data = _build_chart_data(columns, rows)
+    logger.info(f"Query returned {len(rows)} rows with columns: {columns}")
+    return columns, rows, chart_data
+
+
+def _row_to_list(row: Any, columns: list[str]) -> list[Any]:
+    if isinstance(row, (list, tuple)):
+        return list(row)
+    if hasattr(row, "keys"):
+        # sqlite3.Row supports key lookup via row[col], but does not implement .get().
+        row_keys = set(row.keys())
+        return [row[col] if col in row_keys else None for col in columns]
+    return [row]
 
 
 def _sanitize_rows(rows: list[list[Any]]) -> list[list[Any]]:
@@ -40,16 +216,6 @@ def _sanitize_rows(rows: list[list[Any]]) -> list[list[Any]]:
     return sanitized
 
 
-def _is_numeric(val) -> bool:
-    if val is None:
-        return False
-    try:
-        float(val)
-        return True
-    except (TypeError, ValueError):
-        return False
-
-
 def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[ChartData]:
     if not rows or not columns:
         return None
@@ -57,52 +223,52 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
     if len(rows) == 1 and len(columns) == 1:
         return None
 
-    col_lower = [c.lower() for c in columns]
+    label_col_idx = None
+    value_col_idx = None
 
-    numeric_idx = None
-    label_idx = None
+    label_candidates = ["transaction_type", "account_type", "name", "description"]
+    value_candidates = [
+        "amount",
+        "total",
+        "count",
+        "sum",
+        "balance",
+        "total_credit",
+        "total_debit",
+        "transaction_count",
+    ]
 
-    numeric_keywords = ["amount", "balance", "total", "sum", "count", "credit", "debit", "value"]
-    label_keywords   = ["transaction_type", "type", "account_type", "account_number",
-                        "name", "description", "email", "address"]
+    for i, col in enumerate(columns):
+        col_lower = col.lower()
+        if any(candidate in col_lower for candidate in label_candidates):
+            label_col_idx = i
+        if any(candidate in col_lower for candidate in value_candidates):
+            value_col_idx = i
 
-    for i, col in enumerate(col_lower):
-        if label_idx is None:
-            for kw in label_keywords:
-                if kw in col:
-                    label_idx = i
-                    break
-
-    for i, col in enumerate(col_lower):
-        if numeric_idx is None:
-            for kw in numeric_keywords:
-                if kw in col:
-                    numeric_idx = i
-                    break
-
-    if numeric_idx is None:
-        for i, col in enumerate(col_lower):
-            if all(_is_numeric(row[i]) for row in rows if row[i] is not None):
-                numeric_idx = i
-                break
-
-    if label_idx is None:
-        for i, col in enumerate(col_lower):
-            if i != numeric_idx:
-                if all(isinstance(row[i], str) for row in rows if row[i] is not None):
-                    label_idx = i
-                    break
-
-    if numeric_idx is not None and len(rows) >= 1:
-        if label_idx is not None:
-            labels = [str(row[label_idx]) if row[label_idx] is not None else f"Row {i+1}" for i, row in enumerate(rows)]
-        else:
-            labels = [f"Row {i+1}" for i in range(len(rows))]
-
+    if label_col_idx is not None and value_col_idx is not None and len(rows) <= 20:
         try:
-            values = [float(row[numeric_idx]) if _is_numeric(row[numeric_idx]) else 0.0 for row in rows]
+            labels = [str(row[label_col_idx]) for row in rows]
+            values = [
+                float(row[value_col_idx]) if row[value_col_idx] is not None else 0.0
+                for row in rows
+            ]
             return ChartData(type="bar", labels=labels, values=values)
         except (TypeError, ValueError):
             pass
+
+    if "amount" in columns and len(rows) <= 15:
+        amount_idx = columns.index("amount")
+        for label_col in ["description", "transaction_type", "name"]:
+            if label_col in columns:
+                label_idx = columns.index(label_col)
+                try:
+                    labels = [str(row[label_idx]) for row in rows]
+                    values = [
+                        float(row[amount_idx]) if row[amount_idx] is not None else 0.0
+                        for row in rows
+                    ]
+                    return ChartData(type="bar", labels=labels, values=values)
+                except (TypeError, ValueError):
+                    pass
 
     return None
