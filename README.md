@@ -60,13 +60,13 @@ Frontend renders results
 ## Tech Stack
 
 ### Backend
-- 🔵 Python 3.13
-- 🔵 FastAPI
-- 🔵 SQLite
-- 🔵 OpenAI API (chat completions)
-- 🔵 Configurable model (default `gpt-4o-mini`)
+- Python 3.13
+- FastAPI
+- SQLite
+- OpenAI API (chat completions)
+- Configurable model (default `gpt-4o-mini`)
 
 ### Frontend
-- 🔵 HTML5
-- 🔵 JavaScript
-- 🔵 Chart.js
+- HTML5
+- JavaScript
+- Chart.js
