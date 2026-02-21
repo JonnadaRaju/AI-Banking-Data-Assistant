@@ -13,16 +13,11 @@ def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartD
             cursor = conn.execute(sql)
             columns = [description[0] for description in cursor.description]
             raw_rows = cursor.fetchall()
-
             rows = [list(row) for row in raw_rows]
-
             rows = _sanitize_rows(rows)
-
             chart_data = _build_chart_data(columns, rows)
-
-            logger.info(f"Query returned {len(rows)} rows with columns: {columns}")
+            logger.info(f"Query returned {len(rows)} rows | columns: {columns} | chart: {chart_data is not None}")
             return columns, rows, chart_data
-
         except Exception as e:
             logger.error(f"Query execution failed: {e}\nSQL: {sql}")
             raise Exception(f"Database error: {str(e)}")
@@ -45,6 +40,16 @@ def _sanitize_rows(rows: list[list[Any]]) -> list[list[Any]]:
     return sanitized
 
 
+def _is_numeric(val) -> bool:
+    if val is None:
+        return False
+    try:
+        float(val)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[ChartData]:
     if not rows or not columns:
         return None
@@ -52,40 +57,52 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
     if len(rows) == 1 and len(columns) == 1:
         return None
 
-    label_col_idx = None
-    value_col_idx = None
+    col_lower = [c.lower() for c in columns]
 
-    label_candidates = ["transaction_type", "account_type", "name", "description"]
-    value_candidates = ["amount", "total", "count", "sum", "balance", "total_credit",
-                        "total_debit", "transaction_count"]
+    numeric_idx = None
+    label_idx = None
 
-    for i, col in enumerate(columns):
-        col_lower = col.lower()
-        if any(candidate in col_lower for candidate in label_candidates):
-            label_col_idx = i
-        if any(candidate in col_lower for candidate in value_candidates):
-            value_col_idx = i
+    numeric_keywords = ["amount", "balance", "total", "sum", "count", "credit", "debit", "value"]
+    label_keywords   = ["transaction_type", "type", "account_type", "account_number",
+                        "name", "description", "email", "address"]
 
-    if label_col_idx is not None and value_col_idx is not None and len(rows) <= 20:
+    for i, col in enumerate(col_lower):
+        if label_idx is None:
+            for kw in label_keywords:
+                if kw in col:
+                    label_idx = i
+                    break
+
+    for i, col in enumerate(col_lower):
+        if numeric_idx is None:
+            for kw in numeric_keywords:
+                if kw in col:
+                    numeric_idx = i
+                    break
+
+    if numeric_idx is None:
+        for i, col in enumerate(col_lower):
+            if all(_is_numeric(row[i]) for row in rows if row[i] is not None):
+                numeric_idx = i
+                break
+
+    if label_idx is None:
+        for i, col in enumerate(col_lower):
+            if i != numeric_idx:
+                if all(isinstance(row[i], str) for row in rows if row[i] is not None):
+                    label_idx = i
+                    break
+
+    if numeric_idx is not None and len(rows) >= 1:
+        if label_idx is not None:
+            labels = [str(row[label_idx]) if row[label_idx] is not None else f"Row {i+1}" for i, row in enumerate(rows)]
+        else:
+            labels = [f"Row {i+1}" for i in range(len(rows))]
+
         try:
-            labels = [str(row[label_col_idx]) for row in rows]
-            values = [float(row[value_col_idx]) if row[value_col_idx] is not None else 0.0
-                      for row in rows]
+            values = [float(row[numeric_idx]) if _is_numeric(row[numeric_idx]) else 0.0 for row in rows]
             return ChartData(type="bar", labels=labels, values=values)
         except (TypeError, ValueError):
             pass
-
-    if "amount" in columns and len(rows) <= 15:
-        amount_idx = columns.index("amount")
-        for label_col in ["description", "transaction_type", "name"]:
-            if label_col in columns:
-                label_idx = columns.index(label_col)
-                try:
-                    labels = [str(row[label_idx]) for row in rows]
-                    values = [float(row[amount_idx]) if row[amount_idx] is not None else 0.0
-                              for row in rows]
-                    return ChartData(type="bar", labels=labels, values=values)
-                except (TypeError, ValueError):
-                    pass
 
     return None
