@@ -21,6 +21,9 @@ const SILENCE_THRESHOLD_RMS = 0.02;
 const SILENCE_DURATION_MS = 1800;
 const INITIAL_SPEECH_GRACE_MS = 1200;
 const SILENCE_CHECK_INTERVAL_MS = 150;
+const DEFAULT_STT_FALLBACK_LANGUAGES = [
+    "te-IN", "hi-IN", "ta-IN", "kn-IN", "ml-IN", "bn-IN", "en-IN"
+];
 
 // --- Service Initialization ---
 
@@ -208,33 +211,77 @@ function releaseMicrophone() {
 async function sendToSTT(audioBlob) {
     setVoiceStatus("Converting speech to text...", false);
 
-    if (!SARVAM_AI_CONFIG.API_KEY || !SARVAM_AI_CONFIG.STT_ENDPOINT) {
+    const config = getSarvamConfig();
+    if (!config.API_KEY || !config.STT_ENDPOINT) {
         throw new Error("Sarvam AI API key or STT endpoint is not configured.");
     }
 
+    const configuredInputLanguage = (config.STT_INPUT_LANGUAGE || "auto").trim();
+    const attemptLanguages = configuredInputLanguage.toLowerCase() === "auto"
+        ? [null, ...getSttFallbackLanguages(config)]
+        : [configuredInputLanguage];
+
+    let lastError = null;
+    for (const language of attemptLanguages) {
+        try {
+            const result = await requestSTT(audioBlob, language, config);
+            return {
+                text: result.transcript.trim(),
+                language: normalizeLanguageCode(result.language_code)
+            };
+        } catch (err) {
+            lastError = err;
+
+            if (err.code === "network") {
+                throw err;
+            }
+            if (err.code === "http" && err.status === 401) {
+                throw err;
+            }
+            // Keep trying other languages for payload/empty transcript or non-fatal HTTP errors.
+        }
+    }
+
+    if (lastError && lastError.code === "empty_transcript") {
+        throw new Error("No speech was detected. Please try speaking again.");
+    }
+    if (lastError) {
+        throw lastError;
+    }
+    throw new Error("Could not transcribe audio. Please try again.");
+}
+
+async function requestSTT(audioBlob, language, config) {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.wav");
-    formData.append("language", "en-IN");
+    if (language) {
+        formData.append("language", language);
+    }
 
     let response;
     try {
-        response = await fetch(SARVAM_AI_CONFIG.STT_ENDPOINT, {
+        response = await fetch(config.STT_ENDPOINT, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${SARVAM_AI_CONFIG.API_KEY}`
+                "Authorization": `Bearer ${config.API_KEY}`
             },
             body: formData
         });
     } catch (err) {
         console.error("Fetch call to STT API failed directly. This is likely a network or CORS issue.", err);
-        throw new Error("Network error or CORS issue when calling STT API.");
+        const error = new Error("Network error or CORS issue when calling STT API.");
+        error.code = "network";
+        throw error;
     }
 
     const responseText = await response.text();
 
     if (!response.ok) {
         console.error("STT API Error Response:", responseText);
-        throw new Error(`Speech-to-Text API request failed: ${response.status} ${response.statusText}`);
+        const error = new Error(`Speech-to-Text API request failed: ${response.status} ${response.statusText}`);
+        error.code = "http";
+        error.status = response.status;
+        throw error;
     }
 
     let result;
@@ -242,39 +289,69 @@ async function sendToSTT(audioBlob) {
         result = JSON.parse(responseText);
     } catch (e) {
         console.error("Failed to parse STT API response as JSON:", responseText);
-        throw new Error("Received a non-JSON response from the STT API.");
+        const error = new Error("Received a non-JSON response from the STT API.");
+        error.code = "invalid_json";
+        throw error;
     }
     
     console.log("Full STT API Response:", result);
 
-    // Validate the parsed response
     if (!result || typeof result.transcript === 'undefined') {
-        throw new Error("API response is missing the 'transcript' field.");
+        const error = new Error("API response is missing the 'transcript' field.");
+        error.code = "invalid_payload";
+        throw error;
     }
 
     if (!result.transcript.trim()) {
-        // This is now the specific error for empty transcripts
-        throw new Error("No speech was detected. Please try speaking again.");
+        const error = new Error("No speech was detected. Please try speaking again.");
+        error.code = "empty_transcript";
+        throw error;
     }
-    
-    // If validation passes, return the object in the expected format
-    return {
-        text: result.transcript,
-        language: result.language_code || 'en-IN'
-    };
+
+    return result;
+}
+
+function getSarvamConfig() {
+    if (typeof SARVAM_AI_CONFIG === "undefined") {
+        throw new Error("Sarvam config is missing. Create frontend/config.js and define SARVAM_AI_CONFIG.");
+    }
+    return SARVAM_AI_CONFIG;
+}
+
+function getSttFallbackLanguages(config) {
+    if (Array.isArray(config.STT_FALLBACK_LANGUAGES) && config.STT_FALLBACK_LANGUAGES.length > 0) {
+        return config.STT_FALLBACK_LANGUAGES.filter(Boolean);
+    }
+    return DEFAULT_STT_FALLBACK_LANGUAGES;
+}
+
+function normalizeLanguageCode(languageCode) {
+    const raw = (languageCode || "").trim();
+    if (!raw) return "en-IN";
+
+    const lower = raw.toLowerCase();
+    if (lower.startsWith("te")) return "te-IN";
+    if (lower.startsWith("hi")) return "hi-IN";
+    if (lower.startsWith("ta")) return "ta-IN";
+    if (lower.startsWith("kn")) return "kn-IN";
+    if (lower.startsWith("ml")) return "ml-IN";
+    if (lower.startsWith("bn")) return "bn-IN";
+    if (lower.startsWith("en")) return "en-IN";
+    return raw;
 }
 
 async function translateText(text, targetLanguage) {
     setVoiceStatus("Translating...", false);
 
-    if (!SARVAM_AI_CONFIG.API_KEY || !SARVAM_AI_CONFIG.TRANSLATE_ENDPOINT) {
+    const config = getSarvamConfig();
+    if (!config.API_KEY || !config.TRANSLATE_ENDPOINT) {
         throw new Error("Sarvam AI API key or Translate endpoint is not configured.");
     }
 
-    const response = await fetch(SARVAM_AI_CONFIG.TRANSLATE_ENDPOINT, {
+    const response = await fetch(config.TRANSLATE_ENDPOINT, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${SARVAM_AI_CONFIG.API_KEY}`,
+            "Authorization": `Bearer ${config.API_KEY}`,
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -306,15 +383,16 @@ async function speakText(textToSpeak) {
     console.log(`Requesting TTS for: "${textToSpeak}" in language ${originalQueryLanguage}`);
     setVoiceStatus("Generating voice reply...", false);
 
-    if (!SARVAM_AI_CONFIG.API_KEY || !SARVAM_AI_CONFIG.TTS_ENDPOINT) {
+    const config = getSarvamConfig();
+    if (!config.API_KEY || !config.TTS_ENDPOINT) {
         throw new Error("Sarvam AI API key or TTS endpoint is not configured.");
     }
 
     try {
-        const response = await fetch(SARVAM_AI_CONFIG.TTS_ENDPOINT, {
+        const response = await fetch(config.TTS_ENDPOINT, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${SARVAM_AI_CONFIG.API_KEY}`,
+                "Authorization": `Bearer ${config.API_KEY}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
