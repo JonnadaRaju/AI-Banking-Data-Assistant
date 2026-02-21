@@ -26,17 +26,16 @@ async def handle_query(request: QueryRequest) -> QueryResponse:
     is_valid, error_message = validate_sql(sql)
     if not is_valid:
         logger.warning(f"SQL validation blocked: {sql}")
-        return QueryResponse(sql=sql, error=error_message)
+        return QueryResponse(error=error_message)
 
     try:
         columns, rows, chart_data = execute_query(sql)
     except Exception as e:
         logger.error(f"Database execution error: {e}")
-        return QueryResponse(sql=sql, error=str(e))
+        return QueryResponse(error=str(e))
 
     logger.info(f"Query successful: {len(rows)} rows returned")
     return QueryResponse(
-        sql=sql,
         columns=columns,
         rows=rows,
         row_count=len(rows),
