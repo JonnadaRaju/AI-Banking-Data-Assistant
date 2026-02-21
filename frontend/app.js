@@ -16,7 +16,6 @@ const submitBtn      = document.getElementById("submitBtn");
 const loadingDiv     = document.getElementById("loading");
 const errorBox       = document.getElementById("errorBox");
 const resultsSection = document.getElementById("resultsSection");
-const sqlDisplay     = document.getElementById("sqlDisplay");
 const statsBar       = document.getElementById("statsBar");
 const tabData        = document.getElementById("tabData");
 const tabChart       = document.getElementById("tabChart");
@@ -77,7 +76,7 @@ async function submitQuery() {
 
         const data = await response.json();
         if (data.error) {
-            showError(data.error, data.sql);
+            showError(data.error);
         } else {
             renderResults(data);
         }
@@ -95,7 +94,6 @@ async function submitQuery() {
 function renderResults(data) {
     lastData = data;
     resultsSection.style.display = "block";
-    sqlDisplay.textContent = formatSQL(data.sql);
     statsBar.innerHTML = `<span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span><span>returned</span>`;
 
     if (data.row_count === 0) {
@@ -304,31 +302,16 @@ function formatDate(dateStr) {
     } catch { return dateStr; }
 }
 
-function formatSQL(sql) {
-    if (!sql) return "";
-    return sql
-        .replace(/\bSELECT\b/gi,   "\nSELECT")
-        .replace(/\bFROM\b/gi,     "\nFROM")
-        .replace(/\bJOIN\b/gi,     "\nJOIN")
-        .replace(/\bWHERE\b/gi,    "\nWHERE")
-        .replace(/\bGROUP BY\b/gi, "\nGROUP BY")
-        .replace(/\bORDER BY\b/gi, "\nORDER BY")
-        .replace(/\bLIMIT\b/gi,    "\nLIMIT")
-        .replace(/\bAND\b/gi,      "\n  AND")
-        .trim();
-}
-
 function setLoading(show) {
     loadingDiv.style.display = show ? "block" : "none";
     submitBtn.disabled = show;
     submitBtn.textContent = show ? "Thinking..." : "Ask";
 }
 
-function showError(message, sql = null) {
+function showError(message) {
     errorBox.style.display = "block";
     errorBox.innerHTML = `
-        <strong>⚠ Error</strong><br>${escapeHtml(message)}
-        ${sql ? `<br><br><small>Generated SQL: <code>${escapeHtml(sql)}</code></small>` : ""}`;
+        <strong>⚠ Error</strong><br>${escapeHtml(message)}`;
 }
 
 function hideError() {
