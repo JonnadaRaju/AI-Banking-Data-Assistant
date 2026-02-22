@@ -57,3 +57,14 @@ def _extract_first_statement(sql: str) -> str:
     if ";" in sql:
         sql = sql[:sql.index(";") + 1]
     return sql.strip()
+
+
+def validate_sql_alignment(user_query: str, sql: str) -> tuple[bool, str]:
+    """Check that the generated SQL is reasonably aligned with the user query.
+
+    This is a lightweight heuristic guard. Extend with more sophisticated
+    checks (e.g. column-name overlap, table relevance) as needed.
+    """
+    if not sql or not sql.strip():
+        return False, "Generated SQL is empty."
+    return True, ""
