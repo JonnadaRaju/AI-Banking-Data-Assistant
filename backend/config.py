@@ -17,7 +17,6 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "").strip()
-DATABASE_PATH: str = os.getenv("DATABASE_PATH", "banking.db").strip()
 SUPABASE_DB_URL: str = os.getenv("SUPABASE_DB_URL", "").strip()
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "").strip()
@@ -36,11 +35,10 @@ def validate_config() -> None:
         )
     if not OPENAI_MODEL:
         raise ValueError("OPENAI_MODEL is not set. Example: gpt-4o-mini")
-    has_local_db = bool(DATABASE_PATH)
     has_db_url = bool(SUPABASE_DB_URL)
     has_rest_config = bool(SUPABASE_URL and SUPABASE_KEY)
-    if not has_db_url and not has_rest_config and not has_local_db:
+    if not has_db_url and not has_rest_config:
         raise ValueError(
-            "Configure database access in .env with DATABASE_PATH (SQLite), "
+            "Configure database access in .env with "
             "SUPABASE_DB_URL, or SUPABASE_URL + SUPABASE_KEY."
         )

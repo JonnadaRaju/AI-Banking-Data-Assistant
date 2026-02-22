@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from backend.models.schemas import QueryRequest, QueryResponse
 from backend.services.nlp_service import query_to_sql
 from backend.database.connection import check_connection
-from backend.services.validator import validate_sql
+from backend.services.validator import validate_sql, validate_sql_alignment
 from backend.services.db_service import execute_query
 
 
@@ -19,6 +19,7 @@ async def handle_query(request: QueryRequest) -> QueryResponse:
 
     try:
         sql = query_to_sql(request.user_query)
+        logger.info(f"Generated SQL: {sql}")
     except Exception as e:
         logger.error(f"NLP service error: {e}")
         return QueryResponse(error=str(e))
@@ -27,6 +28,15 @@ async def handle_query(request: QueryRequest) -> QueryResponse:
     if not is_valid:
         logger.warning(f"SQL validation blocked: {sql}")
         return QueryResponse(error=error_message)
+
+    is_aligned, alignment_error = validate_sql_alignment(request.user_query, sql)
+    if not is_aligned:
+        logger.warning(
+            "SQL alignment check blocked query. user_query=%s sql=%s",
+            request.user_query,
+            sql,
+        )
+        return QueryResponse(error=alignment_error)
 
     try:
         columns, rows, chart_data = execute_query(sql)
