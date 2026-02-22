@@ -1,126 +1,24 @@
 import logging
-import os
-import re
-import sqlite3
 from typing import Any, Optional
 
 import httpx
 
 from backend.config import (
-    DATABASE_PATH,
     DB_STATEMENT_TIMEOUT_MS,
     REST_DB_TIMEOUT_SECONDS,
     SUPABASE_KEY,
     SUPABASE_URL,
 )
-from backend.database.connection import get_connection, has_rest_config, use_supabase_rest
+from backend.database.connection import get_connection, use_supabase_rest
 from backend.models.schemas import ChartData
 
 logger = logging.getLogger(__name__)
 
 
-def _is_connection_error(error: Exception) -> bool:
-    message = str(error).lower()
-    indicators = [
-        "connection",
-        "timeout",
-        "timed out",
-        "could not connect",
-        "network",
-        "dns",
-        "name or service not known",
-    ]
-    return any(token in message for token in indicators)
-
-
-def _is_missing_run_query_rpc_error(error: Exception) -> bool:
-    message = str(error).lower()
-    return "run_query" in message and ("missing" in message or "ensure rpc function" in message)
-
-
-def _has_sqlite_fallback() -> bool:
-    return bool(DATABASE_PATH) and os.path.exists(DATABASE_PATH)
-
-
-def _translate_postgres_to_sqlite(sql: str) -> str:
-    translated = sql
-    translated = re.sub(
-        r"CURRENT_DATE\s*-\s*INTERVAL\s*'(\d+)\s*day[s]?'",
-        r"date('now', '-\1 days')",
-        translated,
-        flags=re.IGNORECASE,
-    )
-    translated = re.sub(
-        r"CURRENT_DATE\s*\+\s*INTERVAL\s*'(\d+)\s*day[s]?'",
-        r"date('now', '+\1 days')",
-        translated,
-        flags=re.IGNORECASE,
-    )
-    translated = re.sub(r"\bCURRENT_DATE\b", "date('now')", translated, flags=re.IGNORECASE)
-    translated = re.sub(r"\bNOW\(\)", "datetime('now')", translated, flags=re.IGNORECASE)
-    translated = re.sub(r"\bILIKE\b", "LIKE", translated, flags=re.IGNORECASE)
-    translated = re.sub(r"::\s*\w+", "", translated)
-    return translated
-
-
-def _execute_query_sqlite(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
-    if not _has_sqlite_fallback():
-        raise Exception("SQLite fallback is unavailable because DATABASE_PATH file was not found.")
-
-    sqlite_sql = _translate_postgres_to_sqlite(sql)
-
-    conn = None
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        conn.row_factory = sqlite3.Row
-        with conn:
-            cursor = conn.cursor()
-            cursor.execute(sqlite_sql)
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
-            raw_rows = cursor.fetchall() if cursor.description else []
-    except Exception as e:
-        logger.error(f"SQLite fallback query failed: {e}")
-        raise Exception(f"Database error (SQLite fallback): {str(e)}")
-    finally:
-        if conn is not None:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    rows = [_row_to_list(row, columns) for row in raw_rows]
-    rows = _sanitize_rows(rows)
-    chart_data = _build_chart_data(columns, rows)
-    logger.info(f"SQLite fallback returned {len(rows)} rows with columns: {columns}")
-    return columns, rows, chart_data
-
-
 def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
     if use_supabase_rest():
-        try:
-            return _execute_query_rest(sql)
-        except Exception as rest_error:
-            if _is_missing_run_query_rpc_error(rest_error) and _has_sqlite_fallback():
-                logger.warning("Supabase RPC `run_query` missing. Falling back to local SQLite.")
-                return _execute_query_sqlite(sql)
-            raise
-
-    try:
-        return _execute_query_direct(sql)
-    except Exception as direct_error:
-        # Fallback only for connectivity issues. Query errors should surface directly.
-        if has_rest_config() and _is_connection_error(direct_error):
-            logger.warning(f"Direct DB query failed, falling back to REST mode: {direct_error}")
-            try:
-                return _execute_query_rest(sql)
-            except Exception as rest_error:
-                if _is_missing_run_query_rpc_error(rest_error) and _has_sqlite_fallback():
-                    logger.warning("Supabase REST RPC missing. Falling back to local SQLite.")
-                    return _execute_query_sqlite(sql)
-                raise Exception(
-                    f"{direct_error} (REST fallback failed: {rest_error})"
-                ) from rest_error
-        raise
+        return _execute_query_rest(sql)
+    return _execute_query_direct(sql)
 
 
 def _execute_query_direct(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
@@ -193,9 +91,7 @@ def _row_to_list(row: Any, columns: list[str]) -> list[Any]:
     if isinstance(row, (list, tuple)):
         return list(row)
     if hasattr(row, "keys"):
-        # sqlite3.Row supports key lookup via row[col], but does not implement .get().
-        row_keys = set(row.keys())
-        return [row[col] if col in row_keys else None for col in columns]
+        return [row.get(col) for col in columns]
     return [row]
 
 
