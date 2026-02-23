@@ -43,7 +43,8 @@ app.add_middleware(
         "http://127.0.0.1",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:7000",
-        "null"
+        "null",
+        "https://ai-banking-frontend.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
