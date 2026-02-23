@@ -1,23 +1,14 @@
 import logging
 from typing import Any, Optional
 
-import httpx
-
-from backend.config import (
-    DB_STATEMENT_TIMEOUT_MS,
-    REST_DB_TIMEOUT_SECONDS,
-    SUPABASE_KEY,
-    SUPABASE_URL,
-)
-from backend.database.connection import get_connection, use_supabase_rest
+from backend.config import DB_STATEMENT_TIMEOUT_MS
+from backend.database.connection import get_connection
 from backend.models.schemas import ChartData
 
 logger = logging.getLogger(__name__)
 
 
 def execute_query(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
-    if use_supabase_rest():
-        return _execute_query_rest(sql)
     return _execute_query_direct(sql)
 
 
@@ -41,50 +32,6 @@ def _execute_query_direct(sql: str) -> tuple[list[str], list[list[Any]], Optiona
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
             raise Exception(f"Database error: {str(e)}")
-
-
-def _execute_query_rest(sql: str) -> tuple[list[str], list[list[Any]], Optional[ChartData]]:
-    if not (SUPABASE_URL and SUPABASE_KEY):
-        raise Exception("SUPABASE_URL and SUPABASE_KEY are required for REST mode.")
-
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        response = httpx.post(
-            f"{SUPABASE_URL}/rest/v1/rpc/run_query",
-            headers=headers,
-            json={"sql": sql},
-            timeout=REST_DB_TIMEOUT_SECONDS,
-        )
-    except Exception as e:
-        logger.error(f"Supabase REST request failed: {e}")
-        raise Exception("Database error: cannot connect to Supabase REST API.")
-
-    if response.status_code != 200:
-        logger.error(f"Supabase REST error {response.status_code}: {response.text[:300]}")
-        if response.status_code in (404, 400) and "run_query" in response.text:
-            raise Exception(
-                "Database error: Supabase RPC function `run_query(sql text)` is missing. "
-                "Create it in Supabase SQL Editor, or use SUPABASE_DB_URL direct mode."
-            )
-        raise Exception(
-            "Database error: Supabase REST call failed. Ensure RPC function `run_query(sql text)` exists."
-        )
-
-    result = response.json()
-    if not result:
-        return [], [], None
-
-    columns = list(result[0].keys())
-    rows = [[row.get(col) for col in columns] for row in result]
-    rows = _sanitize_rows(rows)
-    chart_data = _build_chart_data(columns, rows)
-    logger.info(f"Query returned {len(rows)} rows with columns: {columns}")
-    return columns, rows, chart_data
 
 
 def _row_to_list(row: Any, columns: list[str]) -> list[Any]:
@@ -123,16 +70,8 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
     value_col_idx = None
 
     label_candidates = ["transaction_type", "account_type", "name", "description"]
-    value_candidates = [
-        "amount",
-        "total",
-        "count",
-        "sum",
-        "balance",
-        "total_credit",
-        "total_debit",
-        "transaction_count",
-    ]
+    value_candidates = ["amount", "total", "count", "sum", "balance",
+                        "total_credit", "total_debit", "transaction_count"]
 
     for i, col in enumerate(columns):
         col_lower = col.lower()
@@ -144,10 +83,8 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
     if label_col_idx is not None and value_col_idx is not None and len(rows) <= 20:
         try:
             labels = [str(row[label_col_idx]) for row in rows]
-            values = [
-                float(row[value_col_idx]) if row[value_col_idx] is not None else 0.0
-                for row in rows
-            ]
+            values = [float(row[value_col_idx]) if row[value_col_idx] is not None else 0.0
+                      for row in rows]
             return ChartData(type="bar", labels=labels, values=values)
         except (TypeError, ValueError):
             pass
@@ -159,10 +96,8 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
                 label_idx = columns.index(label_col)
                 try:
                     labels = [str(row[label_idx]) for row in rows]
-                    values = [
-                        float(row[amount_idx]) if row[amount_idx] is not None else 0.0
-                        for row in rows
-                    ]
+                    values = [float(row[amount_idx]) if row[amount_idx] is not None else 0.0
+                              for row in rows]
                     return ChartData(type="bar", labels=labels, values=values)
                 except (TypeError, ValueError):
                     pass
