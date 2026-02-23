@@ -34,23 +34,20 @@ app = FastAPI(
 )
 
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost",
-        "http://localhost:3000",
         "http://localhost:7000",
-        "http://127.0.0.1",
-        "http://127.0.0.1:3000",
         "http://127.0.0.1:7000",
         "null",
-        "https://ai-banking-frontend.onrender.com"
+        "https://ai-banking-data-assistant-frontend.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
-
 
 
 @app.exception_handler(Exception)
