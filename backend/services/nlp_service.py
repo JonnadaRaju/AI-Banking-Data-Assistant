@@ -12,6 +12,7 @@ from backend.config import (
     OPENAI_REQUEST_TIMEOUT_SECONDS,
     RETRY_DELAY,
 )
+
 from backend.services.validator import clean_sql
 
 logger = logging.getLogger(__name__)
