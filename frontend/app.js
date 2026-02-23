@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "https://ai-banking-data-assistant-backend.onrender.com";
 let chartInstance = null;
 let lastData = null;
 
