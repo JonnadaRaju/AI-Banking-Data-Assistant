@@ -31,22 +31,22 @@ User types a natural language question in the browser
 Frontend (index.html + app.js)
         │  POST /query  { "user_query": "..." }
         ▼
-FastAPI Backend (main.py + routes/query.py)
-        │  Pydantic validates the request
+Go Backend (`backend-go/cmd/server/main.go`)
+        │  JSON request validation
         ▼
-NLP Service (nlp_service.py)
+NLP Service (`backend-go/internal/nlp/service.go`)
         │  Sends query + database schema to the OpenAI API
         │  Receives back a SQL SELECT statement
         ▼
-Validator (validator.py)
+Validator (`backend-go/internal/validator/validator.go`)
         │  Checks SQL is read-only (SELECT only)
         │  Blocks INSERT / UPDATE / DELETE / DROP / ALTER
         ▼
-DB Service (db_service.py)
+DB Service (`backend-go/internal/db/service.go`)
         │  Executes validated SQL against Supabase Postgres
         │  Returns column names + rows + optional chart data
         ▼
-FastAPI Response
+Go HTTP Response
         │  Returns structured JSON { columns, rows, row_count, chart_data, error }
         ▼
 Frontend renders results
@@ -60,8 +60,8 @@ Frontend renders results
 ## Tech Stack
 
 ### Backend
-- Python 3.13
-- FastAPI
+- Go 1.22+
+- net/http
 - Supabase Postgres
 - OpenAI API (chat completions)
 - Configurable model (default `gpt-4o-mini`)
@@ -75,4 +75,16 @@ Frontend renders results
 - **Sarvam AI Speech-to-Text (STT)** — Converts voice input to text (supports Hindi, Tamil, Telugu, Bengali, Kannada, Malayalam, English India)
 - **Sarvam AI Text-to-Speech (TTS)** — Reads query results aloud in a natural Indian voice
 - **Sarvam AI Translate API** *(optional)* — Translates regional language queries to English before LLM processing
+
+---
+
+## Run Backend (Go)
+
+```bash
+cd backend-go
+go mod tidy
+go run ./cmd/server
+```
+
+The API starts on `http://127.0.0.1:8000` by default.
 
