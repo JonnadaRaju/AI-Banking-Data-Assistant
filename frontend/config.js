@@ -5,7 +5,7 @@ let SARVAM_AI_CONFIG = {
     TTS_ENDPOINT: "https://api.sarvam.ai/text-to-speech"
 };
 
-fetch(`${API_URL}/config`)
+fetch("https://ai-banking-data-assistant-backend.onrender.com/config")
     .then(r => r.json())
     .then(data => {
         if (data.sarvam_api_key) {
