@@ -9,7 +9,7 @@ let mediaRecorder;
 let mediaStream;
 let audioChunks = [];
 let isRecording = false;
-let originalQueryLanguage = 'en-IN'; // Default to English
+let originalQueryLanguage = 'en-IN';
 let audioContext;
 let analyserNode;
 let sourceNode;
@@ -96,13 +96,13 @@ async function handleRecordingStop() {
     releaseMicrophone();
 
     const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-    
+
     try {
         // 1. Send to STT
         const sttResponse = await sendToSTT(audioBlob);
         const userQuery = sttResponse.text;
         originalQueryLanguage = sttResponse.language;
-        
+
         setVoiceStatus(`Heard: "${userQuery}"`, false);
 
         // 2. Translate if necessary
@@ -120,7 +120,7 @@ async function handleRecordingStop() {
         // 3. Submit to backend
         if (queryForBackend) {
             queryInput.value = queryForBackend;
-            submitQuery(); // This function is in app.js
+            submitQuery();
         }
         clearVoiceStatus(4000);
 
@@ -134,9 +134,7 @@ async function handleRecordingStop() {
 function startSilenceDetection(stream) {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) {
-            return;
-        }
+        if (!AudioCtx) return;
 
         audioContext = new AudioCtx();
         analyserNode = audioContext.createAnalyser();
@@ -147,9 +145,7 @@ function startSilenceDetection(stream) {
         const data = new Uint8Array(analyserNode.fftSize);
 
         silenceCheckInterval = setInterval(() => {
-            if (!isRecording || !mediaRecorder || mediaRecorder.state === "inactive") {
-                return;
-            }
+            if (!isRecording || !mediaRecorder || mediaRecorder.state === "inactive") return;
 
             analyserNode.getByteTimeDomainData(data);
             let sumSquares = 0;
@@ -161,14 +157,10 @@ function startSilenceDetection(stream) {
             const rms = Math.sqrt(sumSquares / data.length);
             const now = Date.now();
 
-            if (recordingStartTime && now - recordingStartTime < INITIAL_SPEECH_GRACE_MS) {
-                return;
-            }
+            if (recordingStartTime && now - recordingStartTime < INITIAL_SPEECH_GRACE_MS) return;
 
             if (rms < SILENCE_THRESHOLD_RMS) {
-                if (!silenceStartTime) {
-                    silenceStartTime = now;
-                }
+                if (!silenceStartTime) silenceStartTime = now;
                 if (now - silenceStartTime >= SILENCE_DURATION_MS) {
                     setVoiceStatus("Silence detected. Stopping...", false);
                     stopRecording();
@@ -189,9 +181,7 @@ function stopSilenceDetection() {
     }
 
     if (sourceNode) {
-        try {
-            sourceNode.disconnect();
-        } catch (_) {}
+        try { sourceNode.disconnect(); } catch (_) {}
         sourceNode = null;
     }
 
@@ -206,9 +196,7 @@ function stopSilenceDetection() {
 }
 
 function releaseMicrophone() {
-    if (!mediaStream) {
-        return;
-    }
+    if (!mediaStream) return;
     mediaStream.getTracks().forEach(track => track.stop());
     mediaStream = null;
 }
@@ -241,23 +229,15 @@ async function sendToSTT(audioBlob) {
             };
         } catch (err) {
             lastError = err;
-
-            if (err.code === "network") {
-                throw err;
-            }
-            if (err.code === "http" && err.status === 401) {
-                throw err;
-            }
-            // Keep trying other languages for payload/empty transcript or non-fatal HTTP errors.
+            if (err.code === "network") throw err;
+            if (err.code === "http" && err.status === 401) throw err;
         }
     }
 
     if (lastError && lastError.code === "empty_transcript") {
         throw new Error("No speech was detected. Please try speaking again.");
     }
-    if (lastError) {
-        throw lastError;
-    }
+    if (lastError) throw lastError;
     throw new Error("Could not transcribe audio. Please try again.");
 }
 
@@ -265,7 +245,7 @@ async function requestSTT(audioBlob, language, config) {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.wav");
     if (language) {
-        formData.append("language", language);
+        formData.append("language_code", language);  // ✅ correct field name for Sarvam
     }
 
     let response;
@@ -273,12 +253,12 @@ async function requestSTT(audioBlob, language, config) {
         response = await fetch(config.STT_ENDPOINT, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${config.API_KEY}`
+                "api-subscription-key": config.API_KEY  // ✅ correct Sarvam header
             },
             body: formData
         });
     } catch (err) {
-        console.error("Fetch call to STT API failed directly. This is likely a network or CORS issue.", err);
+        console.error("STT fetch failed:", err);
         const error = new Error("Network error or CORS issue when calling STT API.");
         error.code = "network";
         throw error;
@@ -298,12 +278,12 @@ async function requestSTT(audioBlob, language, config) {
     try {
         result = JSON.parse(responseText);
     } catch (e) {
-        console.error("Failed to parse STT API response as JSON:", responseText);
+        console.error("Failed to parse STT response:", responseText);
         const error = new Error("Received a non-JSON response from the STT API.");
         error.code = "invalid_json";
         throw error;
     }
-    
+
     console.log("Full STT API Response:", result);
 
     if (!result || typeof result.transcript === 'undefined') {
@@ -322,9 +302,7 @@ async function requestSTT(audioBlob, language, config) {
 }
 
 function getSarvamConfig() {
-    if (typeof SARVAM_AI_CONFIG === "undefined") {
-        return null;
-    }
+    if (typeof SARVAM_AI_CONFIG === "undefined") return null;
     return SARVAM_AI_CONFIG;
 }
 
@@ -359,87 +337,48 @@ async function translateText(text, targetLanguage) {
         throw new Error("Sarvam AI API key or Translate endpoint is not configured.");
     }
 
-    const payloadVariants = [
-        {
-            text: text,
-            target_language: targetLanguage,
-            source_language: originalQueryLanguage
-        },
-        {
-            input: text,
-            target_language: targetLanguage,
-            source_language: originalQueryLanguage
-        },
-        {
-            text: text,
-            target_language_code: targetLanguage,
-            source_language_code: originalQueryLanguage
+    try {
+        const response = await fetch(config.TRANSLATE_ENDPOINT, {
+            method: "POST",
+            headers: {
+                "api-subscription-key": config.API_KEY,  // ✅ correct Sarvam header
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                input: text,
+                source_language_code: originalQueryLanguage,
+                target_language_code: targetLanguage,
+                speaker_gender: "Female",
+                mode: "formal",
+                model: "mayura:v1",
+                enable_preprocessing: false
+            })
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Translate API Error:", errorBody);
+            throw new Error(`Translation API request failed: ${response.status} ${response.statusText}`);
         }
-    ];
 
-    let lastError = null;
-    for (const payload of payloadVariants) {
-        try {
-            const response = await fetch(config.TRANSLATE_ENDPOINT, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${config.API_KEY}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
+        const result = await response.json();
+        console.log("Translate API Response:", result);
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                console.error("Translate API Error:", errorBody);
-                lastError = new Error(`Translation API request failed: ${response.status} ${response.statusText}`);
-                if (response.status === 401) {
-                    throw lastError;
-                }
-                continue;
-            }
+        const translated = result.translated_text
+            || result.translation
+            || result.output
+            || "";
 
-            const result = await response.json();
-            const translated = extractTranslatedText(result);
-            if (!translated) {
-                lastError = new Error("Received an invalid response from the Translate API.");
-                continue;
-            }
-            return translated;
-        } catch (error) {
-            lastError = error;
-            if (String(error.message || "").includes("401")) {
-                throw error;
-            }
+        if (!translated) {
+            throw new Error("Empty translation response from Sarvam API.");
         }
-    }
 
-    throw lastError || new Error("Translation failed. Please try again.");
-}
+        return translated;
 
-function extractTranslatedText(result) {
-    if (!result) return "";
-    if (typeof result.translated_text === "string" && result.translated_text.trim()) {
-        return result.translated_text.trim();
+    } catch (error) {
+        console.error("Translation error:", error);
+        throw error;
     }
-    if (typeof result.translation === "string" && result.translation.trim()) {
-        return result.translation.trim();
-    }
-    if (typeof result.output === "string" && result.output.trim()) {
-        return result.output.trim();
-    }
-    if (Array.isArray(result.translations) && result.translations.length > 0) {
-        const first = result.translations[0];
-        if (typeof first === "string" && first.trim()) return first.trim();
-        if (first && typeof first.text === "string" && first.text.trim()) return first.text.trim();
-        if (first && typeof first.translated_text === "string" && first.translated_text.trim()) {
-            return first.translated_text.trim();
-        }
-    }
-    if (result.data && typeof result.data.translated_text === "string" && result.data.translated_text.trim()) {
-        return result.data.translated_text.trim();
-    }
-    return "";
 }
 
 async function speakText(textToSpeak) {
@@ -455,14 +394,18 @@ async function speakText(textToSpeak) {
         const response = await fetch(config.TTS_ENDPOINT, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${config.API_KEY}`,
+                "api-subscription-key": config.API_KEY,  // ✅ correct Sarvam header
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                text: textToSpeak,
-                language: originalQueryLanguage
-                // The API might require a specific voice ID as well
-                // voice: 'voice-id-for-telugu' 
+                inputs: [textToSpeak],
+                target_language_code: originalQueryLanguage,
+                speaker: "meera",
+                pitch: 0,
+                pace: 1.0,
+                loudness: 1.5,
+                enable_preprocessing: false,
+                model: "bulbul:v1"
             })
         });
 
@@ -472,14 +415,20 @@ async function speakText(textToSpeak) {
             throw new Error(`Text-to-Speech API request failed: ${response.statusText}`);
         }
 
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        audio.play();
-        
-        audio.onended = () => {
-            clearVoiceStatus(100);
-        };
+        const result = await response.json();
+        console.log("TTS API Response:", result);
+
+        // Sarvam TTS returns base64 audio
+        if (result.audios && result.audios.length > 0) {
+            const base64Audio = result.audios[0];
+            const audioBlob = base64ToBlob(base64Audio, "audio/wav");
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+            audio.onended = () => clearVoiceStatus(100);
+        } else {
+            throw new Error("No audio returned from TTS API.");
+        }
 
     } catch (error) {
         console.error("TTS failed:", error);
@@ -488,11 +437,21 @@ async function speakText(textToSpeak) {
     }
 }
 
+function base64ToBlob(base64, mimeType) {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+}
+
 
 // --- UI and Status Updates ---
 
-function updateUIRecording(isRecording) {
-    if (isRecording) {
+function updateUIRecording(recording) {
+    if (recording) {
         voiceBtn.classList.add("recording");
         voiceBtn.title = "Stop recording";
         setVoiceStatus("Listening...", false);
@@ -516,7 +475,3 @@ function clearVoiceStatus(delay = 0) {
         voiceStatus.textContent = "";
     }, delay);
 }
-
-// --- Initializer ---
-// The call to initializeVoiceAssistant() will be in app.js
-// to ensure all DOM elements are loaded.
