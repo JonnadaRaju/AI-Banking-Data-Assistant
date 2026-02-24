@@ -147,10 +147,10 @@ async function showSummary(text) {
     summaryBox.style.display = "flex";
     summaryBox.querySelector(".summary-text").textContent = text;
 
-    // Voice Assistant Integration
+    // Voice Assistant Integration — silent fail if not configured
     try {
+        if (typeof SARVAM_AI_CONFIG === "undefined") return;
         let textToSpeak = text;
-        // The originalQueryLanguage variable is managed in voice.js
         if (originalQueryLanguage && originalQueryLanguage !== 'en-IN') {
             setVoiceStatus("Translating summary for voice reply...", false);
             textToSpeak = await translateText(text, originalQueryLanguage);
@@ -159,7 +159,7 @@ async function showSummary(text) {
         await speakText(textToSpeak);
     } catch (error) {
         console.error("Could not generate voice reply:", error);
-        showVoiceError("Sorry, the voice reply could not be generated.");
+        // Silent fail — don't show voice errors for text queries
     }
 }
 
