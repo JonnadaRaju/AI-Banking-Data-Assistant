@@ -220,7 +220,7 @@ async function sendToSTT(audioBlob) {
     setVoiceStatus("Converting speech to text...", false);
 
     const config = getSarvamConfig();
-    if (!config.API_KEY || !config.STT_ENDPOINT) {
+    if (!config || !config.API_KEY || !config.STT_ENDPOINT) {
         throw new Error("Sarvam AI API key or STT endpoint is not configured.");
     }
 
@@ -323,7 +323,7 @@ async function requestSTT(audioBlob, language, config) {
 
 function getSarvamConfig() {
     if (typeof SARVAM_AI_CONFIG === "undefined") {
-        throw new Error("Sarvam config is missing. Create frontend/config.js and define SARVAM_AI_CONFIG.");
+        return null;
     }
     return SARVAM_AI_CONFIG;
 }
@@ -355,7 +355,7 @@ async function translateText(text, targetLanguage) {
     setVoiceStatus("Translating...", false);
 
     const config = getSarvamConfig();
-    if (!config.API_KEY || !config.TRANSLATE_ENDPOINT) {
+    if (!config || !config.API_KEY || !config.TRANSLATE_ENDPOINT) {
         throw new Error("Sarvam AI API key or Translate endpoint is not configured.");
     }
 
@@ -447,7 +447,7 @@ async function speakText(textToSpeak) {
     setVoiceStatus("Generating voice reply...", false);
 
     const config = getSarvamConfig();
-    if (!config.API_KEY || !config.TTS_ENDPOINT) {
+    if (!config || !config.API_KEY || !config.TTS_ENDPOINT) {
         throw new Error("Sarvam AI API key or TTS endpoint is not configured.");
     }
 
