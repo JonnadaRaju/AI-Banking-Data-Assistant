@@ -20,7 +20,6 @@ Thumbs.d
 .env
 .env.*
 !.env.example
-frontend/config.js
 
 # Go
 backend-go/bin/
