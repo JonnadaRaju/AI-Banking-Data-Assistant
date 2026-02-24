@@ -1,3 +1,4 @@
+import os
 import logging
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -61,4 +62,11 @@ async def health_check():
         "status": "healthy" if db_ok else "degraded",
         "database": "connected" if db_ok else "unreachable",
         "api": "running"
+    })
+
+
+@router.get("/config")
+async def get_frontend_config():
+    return JSONResponse(content={
+        "sarvam_api_key": os.getenv("SARVAM_API_KEY", "")
     })
