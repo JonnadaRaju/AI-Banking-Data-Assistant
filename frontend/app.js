@@ -61,7 +61,29 @@ function switchTab(tab) {
 async function submitQuery() {
     const userQuery = queryInput.value.trim();
     if (!userQuery) { queryInput.focus(); return; }
+    const queryLower = userQuery.toLowerCase();
+    if (queryLower.includes("pdf") || queryLower.includes("generate pdf") || queryLower.includes("make pdf") || queryLower.includes("download pdf") || queryLower.includes("export pdf")) {
+        if (lastData && lastData.rows.length > 0) {
+            exportPDF();
+            queryInput.value = "";
+            return;
+        } else {
+            showError("No data available to export. Please run a query first.");
+            return;
+        }
+    }
 
+    if (queryLower.includes("csv") || queryLower.includes("generate csv") || queryLower.includes("make csv") || queryLower.includes("download csv") || queryLower.includes("export csv")) {
+        if (lastData && lastData.rows.length > 0) {
+            exportCSV();
+            queryInput.value = "";
+            return;
+        } else {
+            showError("No data available to export. Please run a query first.");
+            return;
+        }
+    }
+    
     setLoading(true);
     hideError();
     hideResults();
