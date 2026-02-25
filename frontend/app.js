@@ -61,29 +61,43 @@ function switchTab(tab) {
 async function submitQuery() {
     const userQuery = queryInput.value.trim();
     if (!userQuery) { queryInput.focus(); return; }
+
     const queryLower = userQuery.toLowerCase();
-    if (queryLower.includes("pdf") || queryLower.includes("generate pdf") || queryLower.includes("make pdf") || queryLower.includes("download pdf") || queryLower.includes("export pdf")) {
+
+    // ── Export command detection ──────────────────────────
+    const isPDF = queryLower.includes("pdf") ||
+                  queryLower.includes("make pdf") ||
+                  queryLower.includes("generate pdf") ||
+                  queryLower.includes("download pdf") ||
+                  queryLower.includes("export pdf");
+
+    const isCSV = queryLower.includes("csv") ||
+                  queryLower.includes("make csv") ||
+                  queryLower.includes("generate csv") ||
+                  queryLower.includes("download csv") ||
+                  queryLower.includes("export csv");
+
+    if (isPDF) {
+        queryInput.value = "";
         if (lastData && lastData.rows.length > 0) {
-            exportPDF();
-            queryInput.value = "";
-            return;
+            showExportButton("pdf");
         } else {
             showError("No data available to export. Please run a query first.");
-            return;
         }
+        return;
     }
 
-    if (queryLower.includes("csv") || queryLower.includes("generate csv") || queryLower.includes("make csv") || queryLower.includes("download csv") || queryLower.includes("export csv")) {
+    if (isCSV) {
+        queryInput.value = "";
         if (lastData && lastData.rows.length > 0) {
-            exportCSV();
-            queryInput.value = "";
-            return;
+            showExportButton("csv");
         } else {
             showError("No data available to export. Please run a query first.");
-            return;
         }
+        return;
     }
-    
+    // ─────────────────────────────────────────────────────
+
     setLoading(true);
     hideError();
     hideResults();
@@ -146,10 +160,10 @@ function generateSummary(userQuery, data) {
         const typeIdx = colLower.findIndex(c => c === "transaction_type" || c === "type");
         if (typeIdx !== -1) {
             const credits = data.rows.filter(r => r[typeIdx] === "credit").length;
-            const debits = data.rows.filter(r => r[typeIdx] === "debit").length;
+            const debits  = data.rows.filter(r => r[typeIdx] === "debit").length;
             if (credits > 0 && debits > 0) summaryText += `${credits} credit${credits !== 1 ? "s" : ""} and ${debits} debit${debits !== 1 ? "s" : ""} found.`;
             else if (credits > 0) summaryText += `All ${credits} transactions are credits.`;
-            else if (debits > 0) summaryText += `All ${debits} transactions are debits.`;
+            else if (debits > 0)  summaryText += `All ${debits} transactions are debits.`;
         }
 
         const balanceIdx = colLower.findIndex(c => c.includes("balance"));
@@ -181,22 +195,23 @@ async function showSummary(text) {
         await speakText(textToSpeak);
     } catch (error) {
         console.error("Could not generate voice reply:", error);
-        // Silent fail — don't show voice errors for text queries
     }
 }
 
 function renderResults(data) {
     lastData = data;
+
+    // Remove any existing export bar from previous query
+    const existingBar = document.getElementById("exportBar");
+    if (existingBar) existingBar.remove();
+
     resultsSection.style.display = "block";
+
+    // Stats bar — NO export buttons here
     statsBar.innerHTML = `
-    <span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span>
-    <span>returned</span>
-    ${data.row_count > 0 ? `
-    <div class="export-bar">
-        <button class="export-btn btn-csv" onclick="exportCSV()">⬇ CSV</button>
-        <button class="export-btn btn-pdf" onclick="exportPDF()">⬇ PDF</button>
-    </div>` : ""}
-`;
+        <span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span>
+        <span>returned</span>
+    `;
 
     if (data.row_count === 0) {
         renderEmpty();
@@ -215,6 +230,39 @@ function renderResults(data) {
     renderTable(data.columns, data.rows);
     tabChart.style.display = "inline-block";
     switchTab("data");
+}
+
+// ── Show export button only when user asks ────────────────
+function showExportButton(type) {
+    // Remove existing export bar if any
+    const existing = document.getElementById("exportBar");
+    if (existing) existing.remove();
+
+    const bar = document.createElement("div");
+    bar.id = "exportBar";
+    bar.className = "export-bar";
+
+    if (type === "pdf") {
+        bar.innerHTML = `
+            <span style="font-size:13px;color:#555;align-self:center;">Ready to export:</span>
+            <button class="export-btn btn-pdf" onclick="exportPDF(); document.getElementById('exportBar').remove();">
+                ⬇ Download PDF
+            </button>
+        `;
+    } else if (type === "csv") {
+        bar.innerHTML = `
+            <span style="font-size:13px;color:#555;align-self:center;">Ready to export:</span>
+            <button class="export-btn btn-csv" onclick="exportCSV(); document.getElementById('exportBar').remove();">
+                ⬇ Download CSV
+            </button>
+        `;
+    }
+
+    // Insert after statsBar
+    statsBar.parentElement.insertBefore(bar, statsBar.nextSibling);
+
+    // Scroll to export bar smoothly
+    bar.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function buildChartFromData(data) {
@@ -241,7 +289,7 @@ function buildChartFromData(data) {
                 label: "Value",
                 data: chartData.values,
                 backgroundColor: [
-                    "rgba(15,52,96,0.85)", "rgba(6,182,212,0.85)",
+                    "rgba(15,52,96,0.85)",   "rgba(6,182,212,0.85)",
                     "rgba(16,185,129,0.85)", "rgba(245,158,11,0.85)",
                     "rgba(139,92,246,0.85)", "rgba(239,68,68,0.85)",
                     "rgba(59,130,246,0.85)", "rgba(249,115,22,0.85)",
@@ -289,9 +337,9 @@ function resolveChartData(columns, rows) {
     let typeIdx = null;
 
     for (let i = 0; i < col.length; i++) {
-        if (numIdx === null && numericKeywords.some(k => col[i].includes(k))) numIdx = i;
-        if (nameIdx === null && nameKeywords.some(k => col[i].includes(k))) nameIdx = i;
-        if (typeIdx === null && typeKeywords.some(k => col[i].includes(k))) typeIdx = i;
+        if (numIdx  === null && numericKeywords.some(k => col[i].includes(k))) numIdx  = i;
+        if (nameIdx === null && nameKeywords.some(k => col[i].includes(k)))    nameIdx = i;
+        if (typeIdx === null && typeKeywords.some(k => col[i].includes(k)))    typeIdx = i;
     }
 
     if (numIdx === null) {
@@ -303,7 +351,6 @@ function resolveChartData(columns, rows) {
     if (numIdx === null) return null;
 
     let lblIdx = null;
-
     if (nameIdx !== null) {
         lblIdx = nameIdx;
     } else if (typeIdx !== null) {
@@ -311,8 +358,7 @@ function resolveChartData(columns, rows) {
     } else {
         for (let i = 0; i < col.length; i++) {
             if (i !== numIdx && rows.every(r => typeof r[i] === "string" || r[i] === null)) {
-                lblIdx = i;
-                break;
+                lblIdx = i; break;
             }
         }
     }
@@ -428,6 +474,8 @@ function hideResults() {
     panelData.innerHTML = "";
     panelChart.innerHTML = "";
     tabChart.style.display = "none";
+    const exportBar = document.getElementById("exportBar");
+    if (exportBar) exportBar.remove();
 }
 
 function escapeHtml(str) {
@@ -442,7 +490,7 @@ submitBtn.addEventListener("click", submitQuery);
 queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
 
 
-// ─── EXPORT FUNCTIONS ───────────────────────────────
+// ─── EXPORT FUNCTIONS ────────────────────────────────────
 
 function exportCSV() {
     if (!lastData || !lastData.rows.length) return;
