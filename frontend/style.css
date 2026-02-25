@@ -384,3 +384,27 @@ td.amount { font-family: 'Consolas', monospace; }
     70% { box-shadow: 0 0 0 10px rgba(229, 62, 62, 0); }
     100% { box-shadow: 0 0 0 0 rgba(229, 62, 62, 0); }
 }
+
+.export-bar {
+    display: flex;
+    gap: 10px;
+    margin: 12px 0 4px 0;
+    flex-wrap: wrap;
+}
+
+.export-btn {
+    padding: 7px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s;
+}
+
+.export-btn:hover { opacity: 0.85; }
+.btn-csv { background: #16a34a; color: white; }
+.btn-pdf { background: #dc2626; color: white; }
