@@ -166,7 +166,15 @@ async function showSummary(text) {
 function renderResults(data) {
     lastData = data;
     resultsSection.style.display = "block";
-    statsBar.innerHTML = `<span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span><span>returned</span>`;
+    statsBar.innerHTML = `
+    <span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span>
+    <span>returned</span>
+    ${data.row_count > 0 ? `
+    <div class="export-bar">
+        <button class="export-btn btn-csv" onclick="exportCSV()">⬇ CSV</button>
+        <button class="export-btn btn-pdf" onclick="exportPDF()">⬇ PDF</button>
+    </div>` : ""}
+`;
 
     if (data.row_count === 0) {
         renderEmpty();
@@ -410,6 +418,82 @@ function escapeHtml(str) {
 
 submitBtn.addEventListener("click", submitQuery);
 queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
+
+
+// ─── EXPORT FUNCTIONS ───────────────────────────────
+
+function exportCSV() {
+    if (!lastData || !lastData.rows.length) return;
+
+    const headers = lastData.columns.join(",");
+    const rows = lastData.rows.map(row =>
+        row.map(val => {
+            if (val === null || val === undefined) return "";
+            const str = String(val);
+            return str.includes(",") || str.includes('"') || str.includes("\n")
+                ? `"${str.replace(/"/g, '""')}"`
+                : str;
+        }).join(",")
+    );
+
+    const csv = [headers, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `banking_data_${getTimestamp()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportPDF() {
+    if (!lastData || !lastData.rows.length) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    doc.setFontSize(16);
+    doc.setTextColor(10, 36, 99);
+    doc.text("AI Banking Data Assistant", 14, 16);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleString("en-IN")}   |   Rows: ${lastData.row_count}`, 14, 24);
+
+    doc.autoTable({
+        head: [lastData.columns.map(c => formatColumnName(c))],
+        body: lastData.rows.map(row =>
+            row.map((val, idx) => {
+                if (val === null || val === undefined) return "—";
+                const col = lastData.columns[idx].toLowerCase();
+                if (col.includes("amount") || col.includes("balance") || col.includes("total")) {
+                    return "₹" + Number(val).toLocaleString("en-IN");
+                }
+                if (col.includes("date") || col.includes("created_at")) {
+                    return formatDate(val);
+                }
+                return String(val);
+            })
+        ),
+        startY: 30,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: {
+            fillColor: [10, 36, 99],
+            textColor: 255,
+            fontStyle: "bold"
+        },
+        alternateRowStyles: { fillColor: [240, 245, 255] },
+        margin: { left: 14, right: 14 }
+    });
+
+    doc.save(`banking_data_${getTimestamp()}.pdf`);
+}
+
+function getTimestamp() {
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
+}
+
 
 buildChips();
 initializeVoiceAssistant();
