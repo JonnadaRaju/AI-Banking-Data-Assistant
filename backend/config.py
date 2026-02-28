@@ -14,8 +14,8 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
         return default
 
 
-OPENAI_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-OPENAI_MODEL: str = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
+OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
 OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
 POSTGRES_URL: str = os.getenv("POSTGRES_URL", "").strip()
 
@@ -28,9 +28,9 @@ REST_DB_TIMEOUT_SECONDS: int = _env_int("REST_DB_TIMEOUT_SECONDS", 30)
 
 
 def validate_config() -> None:
-    if not OPENAI_API_KEY:
+    if not OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY is not set in .env")
-    if not OPENAI_MODEL:
+    if not OPENROUTER_MODEL:
         raise ValueError("OPENROUTER_MODEL is not set in .env")
     if not POSTGRES_URL:
         raise ValueError("POSTGRES_URL is not set in .env")
