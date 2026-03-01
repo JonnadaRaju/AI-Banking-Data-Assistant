@@ -69,16 +69,30 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
     label_col_idx = None
     value_col_idx = None
 
-    label_candidates = ["transaction_type", "account_type", "name", "description"]
-    value_candidates = ["amount", "total", "count", "sum", "balance",
-                        "total_credit", "total_debit", "transaction_count"]
+    label_keywords = ["transaction_type", "account_type", "name", "description", "type"]
+    # BUG FIX: use substring match (col_lower contains keyword) instead of exact match
+    # This fixes cases where column is named "total_amount", "credit_amount", etc.
+    value_keywords = ["amount", "total", "count", "sum", "balance",
+                      "credit", "debit", "revenue", "payment"]
 
-    for i, col in enumerate(columns):
-        col_lower = col.lower()
-        if any(candidate in col_lower for candidate in label_candidates):
+    col_lower_list = [c.lower() for c in columns]
+
+    for i, col_lower in enumerate(col_lower_list):
+        if label_col_idx is None and any(kw in col_lower for kw in label_keywords):
             label_col_idx = i
-        if any(candidate in col_lower for candidate in value_candidates):
+        if value_col_idx is None and any(kw in col_lower for kw in value_keywords):
             value_col_idx = i
+
+    # If no value column found by keyword, try to find any numeric column
+    if value_col_idx is None:
+        for i, col_lower in enumerate(col_lower_list):
+            if i == label_col_idx:
+                continue
+            numeric_vals = [row[i] for row in rows if row[i] is not None]
+            if numeric_vals and all(isinstance(v, (int, float)) or
+               (isinstance(v, str) and _is_numeric(v)) for v in numeric_vals):
+                value_col_idx = i
+                break
 
     if label_col_idx is not None and value_col_idx is not None and len(rows) <= 20:
         try:
@@ -89,13 +103,15 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
         except (TypeError, ValueError):
             pass
 
-    if "amount" in columns and len(rows) <= 15:
-        amount_idx = columns.index("amount")
-        for label_col in ["description", "transaction_type", "name"]:
-            if label_col in columns:
-                label_idx = columns.index(label_col)
+    # BUG FIX: use substring match instead of exact "amount" in columns
+    amount_idx = next((i for i, c in enumerate(col_lower_list) if "amount" in c), None)
+    if amount_idx is not None and len(rows) <= 15:
+        for label_col in ["description", "transaction_type", "name", "type"]:
+            # BUG FIX: use substring match for label column too
+            lbl_idx = next((i for i, c in enumerate(col_lower_list) if label_col in c), None)
+            if lbl_idx is not None:
                 try:
-                    labels = [str(row[label_idx]) for row in rows]
+                    labels = [str(row[lbl_idx]) for row in rows]
                     values = [float(row[amount_idx]) if row[amount_idx] is not None else 0.0
                               for row in rows]
                     return ChartData(type="bar", labels=labels, values=values)
@@ -103,3 +119,11 @@ def _build_chart_data(columns: list[str], rows: list[list[Any]]) -> Optional[Cha
                     pass
 
     return None
+
+
+def _is_numeric(value: str) -> bool:
+    try:
+        float(value)
+        return True
+    except (ValueError, TypeError):
+        return False

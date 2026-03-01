@@ -41,6 +41,8 @@ app.add_middleware(
         "http://localhost",
         "http://localhost:7000",
         "http://127.0.0.1:7000",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
         "null",
         "https://ai-banking-data-assistant-frontend.onrender.com"
     ],

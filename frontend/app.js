@@ -65,17 +65,8 @@ async function submitQuery() {
     const queryLower = userQuery.toLowerCase();
 
     // ── Export command detection ──────────────────────────
-    const isPDF = queryLower.includes("pdf") ||
-                  queryLower.includes("make pdf") ||
-                  queryLower.includes("generate pdf") ||
-                  queryLower.includes("download pdf") ||
-                  queryLower.includes("export pdf");
-
-    const isCSV = queryLower.includes("csv") ||
-                  queryLower.includes("make csv") ||
-                  queryLower.includes("generate csv") ||
-                  queryLower.includes("download csv") ||
-                  queryLower.includes("export csv");
+    const isPDF = queryLower.includes("pdf") || queryLower.includes("export pdf") || queryLower.includes("download pdf");
+    const isCSV = queryLower.includes("csv") || queryLower.includes("export csv") || queryLower.includes("download csv");
 
     if (isPDF) {
         queryInput.value = "";
@@ -183,16 +174,16 @@ async function showSummary(text) {
     summaryBox.style.display = "flex";
     summaryBox.querySelector(".summary-text").textContent = text;
 
-    // Voice Assistant Integration — silent fail if not configured
+    // Voice reply — silent fail if Sarvam not configured
     try {
         if (typeof SARVAM_AI_CONFIG === "undefined") return;
         let textToSpeak = text;
-        if (originalQueryLanguage && originalQueryLanguage !== 'en-IN') {
-            setVoiceStatus("Translating summary for voice reply...", false);
+        if (typeof originalQueryLanguage !== "undefined" && originalQueryLanguage !== 'en-IN') {
+            if (typeof setVoiceStatus === "function") setVoiceStatus("Translating summary for voice reply...", false);
             textToSpeak = await translateText(text, originalQueryLanguage);
-            clearVoiceStatus();
+            if (typeof clearVoiceStatus === "function") clearVoiceStatus();
         }
-        await speakText(textToSpeak);
+        if (typeof speakText === "function") await speakText(textToSpeak);
     } catch (error) {
         console.error("Could not generate voice reply:", error);
     }
@@ -207,7 +198,6 @@ function renderResults(data) {
 
     resultsSection.style.display = "block";
 
-    // Stats bar — NO export buttons here
     statsBar.innerHTML = `
         <span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span>
         <span>returned</span>
@@ -232,9 +222,7 @@ function renderResults(data) {
     switchTab("data");
 }
 
-// ── Show export button only when user asks ────────────────
 function showExportButton(type) {
-    // Remove existing export bar if any
     const existing = document.getElementById("exportBar");
     if (existing) existing.remove();
 
@@ -258,10 +246,7 @@ function showExportButton(type) {
         `;
     }
 
-    // Insert after statsBar
     statsBar.parentElement.insertBefore(bar, statsBar.nextSibling);
-
-    // Scroll to export bar smoothly
     bar.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -415,7 +400,7 @@ function renderTable(columns, rows) {
             const colName = columns[idx].toLowerCase();
             if (colName === "transaction_type" || colName === "type") {
                 td.classList.add(val === "credit" ? "credit" : "debit");
-                td.textContent = val;
+                td.textContent = val ?? "—";
             } else if (colName.includes("amount") || colName.includes("balance") || colName.includes("total")) {
                 td.classList.add("amount");
                 td.textContent = val != null ? "₹" + Number(val).toLocaleString("en-IN") : "—";
@@ -449,10 +434,13 @@ function formatDate(dateStr) {
     } catch { return dateStr; }
 }
 
+// BUG FIX: use innerHTML instead of textContent to preserve the SVG icon inside the button
 function setLoading(show) {
     loadingDiv.style.display = show ? "block" : "none";
     submitBtn.disabled = show;
-    submitBtn.textContent = show ? "Thinking..." : "Ask";
+    submitBtn.innerHTML = show
+        ? "Thinking..."
+        : `Ask`;
 }
 
 function showError(message, sql = null) {
@@ -485,10 +473,6 @@ function escapeHtml(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 }
-
-submitBtn.addEventListener("click", submitQuery);
-queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
-
 
 // ─── EXPORT FUNCTIONS ────────────────────────────────────
 
@@ -564,6 +548,8 @@ function getTimestamp() {
     return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
 }
 
+submitBtn.addEventListener("click", submitQuery);
+queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
 
 buildChips();
 initializeVoiceAssistant();
