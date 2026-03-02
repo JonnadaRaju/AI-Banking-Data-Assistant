@@ -16,15 +16,17 @@ from backend.services.validator import clean_sql
 
 logger = logging.getLogger(__name__)
 
-# BUG FIX: added fallback chain — if primary model fails (rate limit / not available),
-# automatically tries next model instead of crashing
 FREE_MODEL_FALLBACKS = [
-    OPENROUTER_MODEL,                               # from .env (primary)
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-r1-distill-llama-70b:free",
-    "google/gemma-3-27b-it:free",
-    "qwen/qwen3-14b:free",
-    "mistralai/mistral-7b-instruct:free",
+    "meta-llama/llama-3.3-70b-instruct:free",        
+    "nvidia/nemotron-nano-12b-v2:free",              
+    "google/gemma-3-27b-it:free",                     
+    "openai/gpt-oss-120b:free",                       
+    "openai/gpt-oss-20b:free",                        
+    "nvidia/nemotron-nano-9b-v2:free",                
+    "mistralai/mistral-small-3.1-24b-instruct:free",  
+    "qwen/qwen3-4b:free",                             
+    "nous/hermes-3-405b:free",                        
+    "google/gemma-3-12b-it:free",                     
 ]
 
 DB_SCHEMA = """
@@ -86,20 +88,17 @@ def query_to_sql(user_query: str) -> str:
         max_retries=0,
     )
 
-    # Deduplicate while preserving order
-    seen = []
-    models_to_try = []
-    for m in FREE_MODEL_FALLBACKS:
-        if m and m not in seen:
-            seen.append(m)
-            models_to_try.append(m)
+    # Put .env model first, deduplicate
+    models_to_try = list(dict.fromkeys([OPENROUTER_MODEL] + FREE_MODEL_FALLBACKS))
 
     last_error = None
 
     for model in models_to_try:
+        if not model:
+            continue
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                logger.info(f"Trying model: {model} (attempt {attempt}/{MAX_RETRIES})")
+                logger.info(f"Trying model: {model} (attempt {attempt})")
                 result = client.chat.completions.create(
                     model=model,
                     messages=[
@@ -123,55 +122,45 @@ def query_to_sql(user_query: str) -> str:
 
             except openai.APIStatusError as e:
                 status = e.status_code
-                msg = str(e).lower()
                 last_error = e
 
-                # Model not available / not subscribed → skip to next model immediately
-                if status in (400, 403, 404) and any(
-                    kw in msg for kw in ["non-subscribed", "no endpoints", "unable to access", "not found"]
-                ):
-                    logger.warning(f"Model {model} unavailable (HTTP {status}), trying next model...")
-                    break  # break inner retry loop, try next model
-
-                # Rate limited → wait and retry same model, then move on
-                if status == 429:
-                    if attempt < MAX_RETRIES:
-                        logger.warning(f"Rate limit on {model}, waiting {RETRY_DELAY}s...")
-                        time.sleep(RETRY_DELAY)
-                        continue
-                    logger.warning(f"Rate limit exhausted on {model}, trying next model...")
+                # Model unavailable → skip immediately
+                if status in (400, 403, 404):
+                    logger.warning(f"Model {model} unavailable (HTTP {status}), skipping...")
                     break
 
-                # Other API errors → retry a couple times then move on
+                # Rate limit → try next model immediately
+                if status == 429:
+                    logger.warning(f"Rate limit on {model}, trying next...")
+                    time.sleep(2)
+                    break
+
                 if attempt < MAX_RETRIES:
                     time.sleep(5)
                     continue
-                logger.warning(f"API error on {model}: {str(e)[:100]}, trying next model...")
                 break
 
             except openai.AuthenticationError:
                 raise Exception("Invalid OpenRouter API key. Check your .env file.")
 
             except openai.APIConnectionError:
-                raise Exception("Cannot connect to OpenRouter API. Check your internet connection.")
+                raise Exception("Cannot connect to OpenRouter. Check your internet connection.")
 
             except (openai.APITimeoutError, TimeoutError):
-                last_error = Exception("Request timed out.")
+                last_error = Exception("Timeout")
                 if attempt < MAX_RETRIES:
-                    time.sleep(5)
+                    time.sleep(3)
                     continue
-                logger.warning(f"Timeout on {model}, trying next model...")
                 break
 
             except Exception as e:
                 last_error = e
                 if attempt < MAX_RETRIES:
-                    time.sleep(5)
+                    time.sleep(3)
                     continue
                 break
 
-    error_msg = str(last_error)[:200] if last_error else "unknown error"
-    raise Exception(f"All AI models are currently unavailable. Last error: {error_msg}. Please try again in a minute.")
+    raise Exception("All AI models are currently unavailable. Please wait 60 seconds and try again.")
 
 
 def _extract_sql(response: str) -> str:
