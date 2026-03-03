@@ -54,16 +54,17 @@
 
         /* Dark mode text colors */
         .header h1 { color: #ffffff; }
-        .header p { color: #a78bfa; }
+        .header p { color: #ffffff; }
         .sidebar-logo, .nav-item, .sidebar-footer, .theme-toggle { color: #a78bfa; }
         .nav-item:hover, .nav-item.active { color: #c4b5fd; }
         .tab-btn { color: #a78bfa; }
         .tab-btn.active { color: #c4b5fd; }
         .empty-result p, .value-label { color: #a78bfa; }
-        .online-indicator span { color: #7c3aed; }
+        .online-indicator span { color: #a78bfa; }
         .chip { color: #a78bfa; }
         .history-query { color: #e2e8f0; }
-        .history-meta { color: #7c3aed; }
+        .history-meta { color: #a78bfa; }
+        .text-white { color: #ffffff !important; }
 
         /* Light theme */
         body.light {
@@ -623,18 +624,18 @@
         </div>
         <div class="flex-1">
             <h1 class="text-lg font-bold text-white tracking-tight leading-none">AI Banking Data Assistant</h1>
-            <p class="text-xs mt-1" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.08em;">NATURAL LANGUAGE → SQL → RESULTS</p>
+            <p class="text-xs mt-1" style="font-family:'DM Mono',monospace; color:#ffffff; letter-spacing:0.08em;">NATURAL LANGUAGE → SQL → RESULTS</p>
         </div>
         <div class="online-indicator flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full" style="background:#7c3aed; animation:blink 1.4s ease-in-out infinite;"></span>
-            <span class="text-xs" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.05em;">ONLINE</span>
+            <span class="text-xs" style="font-family:'DM Mono',monospace; color:#ffffff; letter-spacing:0.05em;">ONLINE</span>
         </div>
     </header>
 
     <!-- Query Card -->
     <div class="query-card rounded-2xl p-5 mb-4" style="background:#000000; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
 
-        <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
+        <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#ffffff; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
 
         <!-- Input row -->
         <div class="flex gap-2 mb-3">
@@ -676,17 +677,17 @@
         </div>
 
         <!-- Keyboard hints -->
-        <div class="flex items-center gap-4 mb-3" style="font-size:10px;color:#7c3aed;font-family:'DM Mono',monospace;">
+        <div class="flex items-center gap-4 mb-3" style="font-size:10px;color:#888888;font-family:'DM Mono',monospace;">
             <span><kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Ctrl</kbd> + <kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Enter</kbd> to submit</span>
             <span><kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Esc</kbd> to clear</span>
         </div>
 
         <!-- Voice status -->
-        <div id="voiceStatus" class="min-h-[14px] mb-3 text-xs" style="font-family:'DM Mono',monospace; color:#7c3aed;"></div>
+        <div id="voiceStatus" class="min-h-[14px] mb-3 text-xs" style="font-family:'DM Mono',monospace; color:#888888;"></div>
 
         <!-- Example chips -->
         <div>
-            <p class="text-xs mb-2" style="font-family:'DM Mono',monospace; color:#402626; letter-spacing:0.08em; text-transform:uppercase;">Try an example</p>
+            <p class="text-xs mb-2" style="font-family:'DM Mono',monospace; color:#888888; letter-spacing:0.08em; text-transform:uppercase;">Try an example</p>
             <div class="flex flex-wrap gap-1.5" id="chips"></div>
         </div>
     </div>
@@ -716,7 +717,7 @@
         <div class="spinner"></div>
         <div>
             <p class="text-sm font-medium text-white">Processing your query</p>
-            <p class="text-xs mt-0.5" style="font-family:'DM Mono',monospace; color:#7c3aed;">generating sql · querying database...</p>
+            <p class="text-xs mt-0.5" style="font-family:'DM Mono',monospace; color:#888888;">generating sql · querying database...</p>
         </div>
     </div>
 
@@ -747,7 +748,7 @@
         <!-- Summary -->
         <div id="summaryBox" style="display:none;" class="summary-card flex gap-3 items-start rounded-2xl px-5 py-4" style="background:rgba(124,58,237,0.05); border:1px solid rgba(124,58,237,0.12);">
             <span class="text-base flex-shrink-0 mt-0.5">💡</span>
-            <p class="summary-text text-sm leading-relaxed" style="font-family:'DM Mono',monospace; color:#8b5cf6;"></p>
+            <p class="summary-text text-sm leading-relaxed" style="font-family:'DM Mono',monospace; color:#cccccc;"></p>
         </div>
 
     </div>
