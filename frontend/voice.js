@@ -354,19 +354,22 @@ function base64ToBlob(base64, mimeType) {
 // --- UI Updates ---
 
 function updateUIRecording(recording) {
+    const waveform = document.getElementById("voiceWaveform");
     if (recording) {
         voiceBtn.classList.add("recording");
         voiceBtn.title = "Stop recording";
         setVoiceStatus("🎙 Listening...", false);
+        if (waveform) waveform.classList.add("show");
     } else {
         voiceBtn.classList.remove("recording");
         voiceBtn.title = "Ask with voice";
+        if (waveform) waveform.classList.remove("show");
     }
 }
 
 function setVoiceStatus(message, isError) {
     voiceStatus.textContent = message;
-    voiceStatus.style.color = isError ? "#f87171" : "#9f4040";
+    voiceStatus.style.color = isError ? "#a78bfa" : "#7c3aed";
 }
 
 function showVoiceError(message) {
