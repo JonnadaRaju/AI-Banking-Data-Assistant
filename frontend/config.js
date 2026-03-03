@@ -1,6 +1,6 @@
 // AI Banking Data Assistant - Frontend Config
 
-const API_URL = "https://ai-banking-data-assistant-bac.onrender.com";
+const API_URL = "https://ai-banking-data-assistant-backend.onrender.com";
 
 let SARVAM_AI_CONFIG = {
     API_KEY: "",
