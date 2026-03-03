@@ -417,7 +417,7 @@ function renderResults(data) {
     resultsSection.style.display = "block";
 
     statsBar.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:999px;font-size:11px;font-family:'DM Mono',monospace;color:#a78bfa;letter-spacing:0.05em;">
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:999px;font-size:11px;font-family:'DM Mono',monospace;color:var(--brand-light);letter-spacing:0.05em;">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
             ${data.row_count} row${data.row_count !== 1 ? "s" : ""} returned
         </span>
