@@ -1,6 +1,10 @@
 // ── Backend API URL ───────────────────────────────────────────────────────────
 const API_URL = "http://localhost:8000";
 
+// ── Sarvam AI Configuration (Voice Assistant) ─────────────────────────────────
+// API key is fetched securely from the backend /config endpoint
+// so it never needs to be hardcoded here.
+
 let SARVAM_AI_CONFIG = null;
 
 (async function loadConfig() {
@@ -17,7 +21,8 @@ let SARVAM_AI_CONFIG = null;
                 TRANSLATE_ENDPOINT: "https://api.sarvam.ai/translate",
                 TTS_ENDPOINT:       "https://api.sarvam.ai/text-to-speech",
 
-                
+                // Set to "auto" to detect language automatically,
+                // or use a specific code: "en-IN", "hi-IN", "te-IN", etc.
                 STT_INPUT_LANGUAGE: "auto",
 
                 // Fallback languages tried in order when STT_INPUT_LANGUAGE is "auto"
