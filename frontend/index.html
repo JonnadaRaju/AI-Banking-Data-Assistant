@@ -24,9 +24,9 @@
                             800: '#4c1d95',
                         },
                         surface: {
-                            900: '#0a0814',
-                            800: '#130d1f',
-                            700: '#1a1229',
+                            900: '#000000',
+                            800: '#000000',
+                            700: '#111111',
                             600: '#221733',
                             500: '#1e2938',
                             400: '#2d2640',
@@ -47,13 +47,28 @@
     <style>
         * { box-sizing: border-box; }
         body {
-            background-color: #0a0814;
+            background-color: #000000;
             font-family: 'Syne', sans-serif;
+            color: #ffffff;
         }
+
+        /* Dark mode text colors */
+        .header h1 { color: #ffffff; }
+        .header p { color: #a78bfa; }
+        .sidebar-logo, .nav-item, .sidebar-footer, .theme-toggle { color: #a78bfa; }
+        .nav-item:hover, .nav-item.active { color: #c4b5fd; }
+        .tab-btn { color: #a78bfa; }
+        .tab-btn.active { color: #c4b5fd; }
+        .empty-result p, .value-label { color: #a78bfa; }
+        .online-indicator span { color: #7c3aed; }
+        .chip { color: #a78bfa; }
+        .history-query { color: #e2e8f0; }
+        .history-meta { color: #7c3aed; }
 
         /* Light theme */
         body.light {
-            background-color: #f8fafc;
+            background-color: #ffffff;
+            color: #000000;
         }
         body.light .sidebar {
             background: #ffffff;
@@ -70,7 +85,7 @@
             color: #7c3aed;
         }
         body.light .main-content {
-            background: #f1f5f9;
+            background: #f8fafc;
         }
         body.light .query-card,
         body.light .results-card,
@@ -125,7 +140,7 @@
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #130d1f; }
+        ::-webkit-scrollbar-track { background: #000000; }
         ::-webkit-scrollbar-thumb { background: #6d28d9; border-radius: 4px; }
 
         /* Dot grid background */
@@ -162,7 +177,7 @@
             top: 0;
             bottom: 0;
             width: 240px;
-            background: #130d1f;
+            background: #000000;
             border-right: 1px solid rgba(124,58,237,0.1);
             display: flex;
             flex-direction: column;
@@ -401,7 +416,7 @@
             margin-bottom: 20px;
         }
         .summary-card {
-            background: #130d1f;
+            background: #000000;
             border: 1px solid rgba(124,58,237,0.1);
             border-radius: 16px;
             padding: 20px;
@@ -439,7 +454,7 @@
         /* History Panel */
         .history-panel {
             display: none;
-            background: #130d1f;
+            background: #000000;
             border: 1px solid rgba(124,58,237,0.1);
             border-radius: 16px;
             padding: 20px;
@@ -617,7 +632,7 @@
     </header>
 
     <!-- Query Card -->
-    <div class="query-card rounded-2xl p-5 mb-4" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
+    <div class="query-card rounded-2xl p-5 mb-4" style="background:#000000; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
 
         <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
 
@@ -629,13 +644,13 @@
                 placeholder="e.g. Show last 10 transactions above 10,000"
                 autocomplete="off"
                 class="flex-1 rounded-xl px-4 py-2.5 text-sm text-white transition-all duration-200"
-                style="background:#1a1229; border:1px solid rgba(124,58,237,0.12); font-family:'Syne',sans-serif; color:rgba(255,255,255,0.9);"
+                style="background:#111111; border:1px solid rgba(124,58,237,0.12); font-family:'Syne',sans-serif; color:rgba(255,255,255,0.9);"
             />
             <button
                 id="voiceBtn"
                 title="Ask with voice"
                 class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
-                style="background:#1a1229; border:1px solid rgba(124,58,237,0.12); color:#7c3aed;"
+                style="background:#111111; border:1px solid rgba(124,58,237,0.12); color:#7c3aed;"
                 onmouseover="this.style.borderColor='rgba(124,58,237,0.35)'; this.style.color='#a78bfa';"
                 onmouseout="this.style.borderColor='rgba(124,58,237,0.12)'; this.style.color='#7c3aed';"
             >
@@ -697,7 +712,7 @@
     </div>
 
     <!-- Loading -->
-    <div id="loading" style="display:none;" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl mb-4" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1);">
+    <div id="loading" style="display:none;" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl mb-4" style="background:#000000; border:1px solid rgba(124,58,237,0.1);">
         <div class="spinner"></div>
         <div>
             <p class="text-sm font-medium text-white">Processing your query</p>
@@ -718,7 +733,7 @@
         <div id="statsBar" class="flex items-center gap-2.5 mb-3"></div>
 
         <!-- Results card -->
-        <div class="results-card rounded-2xl overflow-hidden mb-3" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.35);">
+        <div class="results-card rounded-2xl overflow-hidden mb-3" style="background:#000000; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.35);">
             <!-- Tab header -->
             <div class="flex gap-1 px-4 pt-3" style="border-bottom:1px solid rgba(124,58,237,0.08);">
                 <button id="tabData" class="tab-btn active">📋 Data</button>
