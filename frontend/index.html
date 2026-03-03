@@ -4,61 +4,330 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>AI Banking Data Assistant</title>
-    <link rel="stylesheet" href="style.css"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Syne', 'sans-serif'],
+                        mono: ['DM Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            300: '#fca5a5',
+                            400: '#f87171',
+                            500: '#dc2626',
+                            600: '#b91c1c',
+                            700: '#991b1b',
+                            800: '#7f1d1d',
+                        },
+                        surface: {
+                            900: '#0f0808',
+                            800: '#1a0d0d',
+                            700: '#201212',
+                            600: '#291717',
+                            500: '#1e3328',
+                            400: '#402626',
+                        }
+                    },
+                    keyframes: {
+                        fadeUp: { '0%': { opacity: '0', transform: 'translateY(14px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        blink: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.2' } },
+                    },
+                    animation: {
+                        fadeUp: 'fadeUp 0.35s ease forwards',
+                        blink: 'blink 1.4s ease-in-out infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background-color: #0f0808;
+            font-family: 'Syne', sans-serif;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #1a0d0d; }
+        ::-webkit-scrollbar-thumb { background: #b91c1c; border-radius: 4px; }
+
+        /* Dot grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(rgba(220,38,38,0.10) 1px, transparent 1px);
+            background-size: 28px 28px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top glow */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -120px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(220,38,38,0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .z1 { position: relative; z-index: 1; }
+
+        /* Input focus glow */
+        #queryInput:focus {
+            outline: none;
+            border-color: rgba(220,38,38,0.5);
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.08), 0 0 24px rgba(220,38,38,0.08);
+        }
+
+        /* Chip */
+        .chip {
+            display: inline-block;
+            padding: 5px 12px;
+            background: rgba(18,32,24,0.9);
+            border: 1px solid rgba(220,38,38,0.15);
+            border-radius: 8px;
+            font-size: 11px;
+            font-family: 'DM Mono', monospace;
+            color: #b06060;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .chip:hover {
+            background: rgba(220,38,38,0.12);
+            border-color: rgba(220,38,38,0.45);
+            color: #f87171;
+            transform: translateY(-1px);
+        }
+
+        /* Tabs */
+        .tab-btn {
+            padding: 8px 18px;
+            font-size: 11px;
+            font-family: 'DM Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid transparent;
+            border-bottom: none;
+            color: #9f4040;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            background: transparent;
+        }
+        .tab-btn:hover:not(.active) { color: #b06060; background: rgba(255,255,255,0.02); }
+        .tab-btn.active {
+            background: rgba(220,38,38,0.1);
+            border-color: rgba(220,38,38,0.2);
+            color: #f87171;
+        }
+
+        /* Table */
+        #resultsTable { width: 100%; border-collapse: collapse; }
+        #resultsTable thead th {
+            background: rgba(220,38,38,0.07);
+            color: #f87171;
+            font-family: 'DM Mono', monospace;
+            font-size: 10.5px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            padding: 11px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(220,38,38,0.15);
+            white-space: nowrap;
+        }
+        #resultsTable tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.12s; }
+        #resultsTable tbody tr:hover { background: rgba(220,38,38,0.04); }
+        #resultsTable tbody td {
+            padding: 10px 16px;
+            font-size: 12.5px;
+            color: #7aaa8e;
+            font-family: 'DM Mono', monospace;
+        }
+        #resultsTable td.credit { color: #4ade80; font-weight: 500; }
+        #resultsTable td.debit  { color: #f87171; font-weight: 500; }
+        #resultsTable td.amount { color: #e2f5eb; font-weight: 600; }
+
+        /* Spinner */
+        .spinner {
+            width: 22px; height: 22px;
+            border: 2px solid rgba(220,38,38,0.12);
+            border-top-color: #dc2626;
+            border-radius: 50%;
+            animation: spin 0.65s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Voice btn recording */
+        #voiceBtn.recording {
+            background: rgba(239,68,68,0.1) !important;
+            border-color: rgba(239,68,68,0.4) !important;
+            color: #f87171 !important;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        /* Export bar */
+        #exportBar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            background: rgba(220,38,38,0.05);
+            border: 1px solid rgba(220,38,38,0.18);
+            border-radius: 12px;
+            margin-bottom: 14px;
+            font-size: 12px;
+            font-family: 'DM Mono', monospace;
+            color: #b06060;
+        }
+        .export-btn {
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Syne', sans-serif;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            letter-spacing: 0.03em;
+        }
+        .btn-pdf { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+        .btn-pdf:hover { background: rgba(239,68,68,0.18); }
+        .btn-csv { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.25); color: #fca5a5; }
+        .btn-csv:hover { background: rgba(220,38,38,0.18); }
+
+        /* Chart canvas */
+        #myChart { max-height: 300px; }
+
+        /* Single value */
+        .single-value { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px; gap: 10px; }
+        .value-number { font-size: 52px; font-weight: 800; color: #f87171; letter-spacing: -0.03em; font-family: 'Syne', sans-serif; }
+        .value-label { font-size: 11px; color: #9f4040; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.12em; }
+
+        /* Empty */
+        .empty-result { display: flex; flex-direction: column; align-items: center; padding: 52px 24px; gap: 10px; }
+        .empty-icon { font-size: 32px; }
+        .empty-result p { color: #9f4040; font-size: 13px; font-family: 'DM Mono', monospace; }
+
+        /* Results fade */
+        #resultsSection { animation: fadeUp 0.32s ease forwards; }
+
+        /* Submit disabled */
+        #submitBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+    </style>
 </head>
-<body>
+<body class="min-h-screen">
 
-<header>
-    <span class="logo">🏦</span>
-    <div>
-        <h1>AI Banking Data Assistant</h1>
-        <p>Ask questions about banking data</p>
-    </div>
-</header>
+<div class="z1 max-w-6xl mx-auto px-4 py-10">
 
-<div class="container">
+    <!-- Header -->
+    <header class="flex items-center gap-3.5 mb-9">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+             style="background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.2);">
+            🏦
+        </div>
+        <div class="flex-1">
+            <h1 class="text-lg font-bold text-white tracking-tight leading-none">AI Banking Data Assistant</h1>
+            <p class="text-xs mt-1" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.08em;">NATURAL LANGUAGE → SQL → RESULTS</p>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full" style="background:#dc2626; animation:blink 1.4s ease-in-out infinite;"></span>
+            <span class="text-xs" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.05em;">ONLINE</span>
+        </div>
+    </header>
 
-    <div class="query-section">
-        <h2>What would you like to know?</h2>
-        <div class="query-input-row">
-            <input type="text" id="queryInput" placeholder="e.g. Show last 10 transactions above 10,000" autocomplete="off"/>
-            <button id="voiceBtn" title="Ask with voice">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mic-icon"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+    <!-- Query Card -->
+    <div class="rounded-2xl p-5 mb-4" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
+
+        <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
+
+        <!-- Input row -->
+        <div class="flex gap-2 mb-3">
+            <input
+                type="text"
+                id="queryInput"
+                placeholder="e.g. Show last 10 transactions above 10,000"
+                autocomplete="off"
+                class="flex-1 rounded-xl px-4 py-2.5 text-sm text-white transition-all duration-200"
+                style="background:#201212; border:1px solid rgba(220,38,38,0.12); font-family:'Syne',sans-serif; color:rgba(255,255,255,0.9);"
+            />
+            <button
+                id="voiceBtn"
+                title="Ask with voice"
+                class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
+                style="background:#201212; border:1px solid rgba(220,38,38,0.12); color:#9f4040;"
+                onmouseover="this.style.borderColor='rgba(220,38,38,0.35)'; this.style.color='#f87171';"
+                onmouseout="this.style.borderColor='rgba(220,38,38,0.12)'; this.style.color='#9f4040';"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
             </button>
-            <button id="submitBtn">Ask</button>
+            <button
+                id="submitBtn"
+                class="px-5 h-10 rounded-xl text-sm font-semibold tracking-wide flex-shrink-0 transition-all duration-200"
+                style="background:#b91c1c; color:white;"
+                onmouseover="if(!this.disabled) this.style.background='#dc2626';"
+                onmouseout="if(!this.disabled) this.style.background='#b91c1c';"
+            >
+                Ask
+            </button>
         </div>
-        <div class="voice-status" id="voiceStatus"></div>
-        <div class="examples">
-            <p>Try an example:</p>
-            <div class="chips" id="chips"></div>
+
+        <!-- Voice status -->
+        <div id="voiceStatus" class="min-h-[14px] mb-3 text-xs" style="font-family:'DM Mono',monospace; color:#9f4040;"></div>
+
+        <!-- Example chips -->
+        <div>
+            <p class="text-xs mb-2" style="font-family:'DM Mono',monospace; color:#402626; letter-spacing:0.08em; text-transform:uppercase;">Try an example</p>
+            <div class="flex flex-wrap gap-1.5" id="chips"></div>
         </div>
     </div>
 
-    <div id="loading">
+    <!-- Loading -->
+    <div id="loading" style="display:none;" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl mb-4" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1);">
         <div class="spinner"></div>
-        <p>Generating SQL and fetching results...</p>
+        <div>
+            <p class="text-sm font-medium text-white">Processing your query</p>
+            <p class="text-xs mt-0.5" style="font-family:'DM Mono',monospace; color:#9f4040;">generating sql · querying database...</p>
+        </div>
     </div>
 
-    <div id="errorBox"></div>
+    <!-- Error -->
+    <div id="errorBox" style="display:none;" class="rounded-2xl px-5 py-4 mb-4 text-sm" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); color:#fca5a5; font-family:'DM Mono',monospace;"></div>
 
-    <div id="resultsSection">
+    <!-- Results -->
+    <div id="resultsSection" style="display:none;">
 
-        <div class="stats-bar" id="statsBar"></div>
+        <!-- Stats bar -->
+        <div id="statsBar" class="flex items-center gap-2.5 mb-3"></div>
 
-        <div class="tabs-container">
-            <div class="tabs-header">
-                <button class="tab-btn active" id="tabData">📋 Data</button>
-                <button class="tab-btn" id="tabChart">📊 Chart</button>
+        <!-- Results card -->
+        <div class="rounded-2xl overflow-hidden mb-3" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.35);">
+            <!-- Tab header -->
+            <div class="flex gap-1 px-4 pt-3" style="border-bottom:1px solid rgba(220,38,38,0.08);">
+                <button id="tabData" class="tab-btn active">📋 Data</button>
+                <button id="tabChart" class="tab-btn" style="display:none;">📊 Chart</button>
             </div>
-            <div class="tab-content">
-                <div id="panelData" class="tab-panel"></div>
-                <div id="panelChart" class="tab-panel" style="display:none;"></div>
-            </div>
+            <!-- Panels -->
+            <div id="panelData" class="tab-panel overflow-x-auto"></div>
+            <div id="panelChart" class="tab-panel p-5" style="display:none;"></div>
         </div>
 
-        <div id="summaryBox" style="display:none;">
-            <span class="summary-icon">💡</span>
-            <p class="summary-text"></p>
+        <!-- Summary -->
+        <div id="summaryBox" style="display:none;" class="flex gap-3 items-start rounded-2xl px-5 py-4" style="background:rgba(220,38,38,0.05); border:1px solid rgba(220,38,38,0.12);">
+            <span class="text-base flex-shrink-0 mt-0.5">💡</span>
+            <p class="summary-text text-sm leading-relaxed" style="font-family:'DM Mono',monospace; color:#b06060;"></p>
         </div>
 
     </div>
@@ -71,5 +340,6 @@
 <script src="config.js"></script>
 <script src="voice.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
