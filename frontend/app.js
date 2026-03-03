@@ -1,5 +1,7 @@
 let chartInstance = null;
 let lastData = null;
+let queryHistory = JSON.parse(localStorage.getItem('queryHistory') || '[]');
+let currentTheme = localStorage.getItem('theme') || 'dark';
 
 const EXAMPLE_QUERIES = [
     "Show the last 10 transactions where amount is greater than 10000",
@@ -13,15 +15,160 @@ const EXAMPLE_QUERIES = [
 const queryInput     = document.getElementById("queryInput");
 const submitBtn      = document.getElementById("submitBtn");
 const loadingDiv     = document.getElementById("loading");
+const skeletonLoading = document.getElementById("skeletonLoading");
 const errorBox       = document.getElementById("errorBox");
 const resultsSection = document.getElementById("resultsSection");
 const statsBar       = document.getElementById("statsBar");
+const summaryCards   = document.getElementById("summaryCards");
 const tabData        = document.getElementById("tabData");
 const tabChart       = document.getElementById("tabChart");
 const panelData      = document.getElementById("panelData");
 const panelChart     = document.getElementById("panelChart");
 const summaryBox     = document.getElementById("summaryBox");
 const chipsDiv       = document.getElementById("chips");
+const historyPanel   = document.getElementById("historyPanel");
+const historyList    = document.getElementById("historyList");
+const voiceWaveform  = document.getElementById("voiceWaveform");
+const sidebar        = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+const themeToggle    = document.getElementById("themeToggle");
+
+function initApp() {
+    applyTheme();
+    buildChips();
+    renderHistory();
+    setupEventListeners();
+    initializeVoiceAssistant();
+}
+
+function applyTheme() {
+    if (currentTheme === 'light') {
+        document.body.classList.add('light');
+        document.getElementById('sunIcon').style.display = 'none';
+        document.getElementById('moonIcon').style.display = 'block';
+        themeToggle.querySelector('span').textContent = 'Dark Mode';
+    } else {
+        document.body.classList.remove('light');
+        document.getElementById('sunIcon').style.display = 'block';
+        document.getElementById('moonIcon').style.display = 'none';
+        themeToggle.querySelector('span').textContent = 'Light Mode';
+    }
+}
+
+function setupEventListeners() {
+    submitBtn.addEventListener("click", submitQuery);
+    
+    queryInput.addEventListener("keydown", e => {
+        if (e.key === "Enter" && e.ctrlKey) {
+            e.preventDefault();
+            submitQuery();
+        } else if (e.key === "Escape") {
+            queryInput.value = "";
+            hideResults();
+            hideError();
+        }
+    });
+
+    tabData.addEventListener("click", () => switchTab("data"));
+    tabChart.addEventListener("click", () => {
+        switchTab("chart");
+        if (lastData) buildChartFromData(lastData);
+    });
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => handleNavClick(item.dataset.view));
+    });
+
+    themeToggle.addEventListener('click', toggleTheme);
+    
+    document.getElementById('menuBtn')?.addEventListener('click', toggleSidebar);
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+    
+    document.getElementById('clearHistory')?.addEventListener('click', clearHistory);
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', currentTheme);
+    applyTheme();
+}
+
+function toggleSidebar() {
+    sidebar.classList.toggle('open');
+    sidebarOverlay.classList.toggle('show');
+}
+
+function handleNavClick(view) {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === view);
+    });
+
+    if (view === 'history') {
+        historyPanel.classList.add('show');
+        resultsSection.style.display = 'none';
+    } else {
+        historyPanel.classList.remove('show');
+        if (view === 'home' && lastData) {
+            resultsSection.style.display = 'block';
+        }
+    }
+    
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('show');
+}
+
+function addToHistory(query, rowCount) {
+    const item = {
+        query: query,
+        timestamp: new Date().toISOString(),
+        rowCount: rowCount
+    };
+    queryHistory.unshift(item);
+    if (queryHistory.length > 20) queryHistory.pop();
+    localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+    renderHistory();
+}
+
+function renderHistory() {
+    if (queryHistory.length === 0) {
+        historyList.innerHTML = '<div class="history-empty">No query history yet.<br>Run a query to see it here.</div>';
+        return;
+    }
+    
+    historyList.innerHTML = queryHistory.map((item, idx) => `
+        <div class="history-item" onclick="rerunQuery('${escapeHtml(item.query)}')">
+            <div class="history-query">${escapeHtml(item.query)}</div>
+            <div class="history-meta">
+                <span>${formatTimeAgo(item.timestamp)}</span>
+                <span>${item.rowCount} rows</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function rerunQuery(query) {
+    queryInput.value = query;
+    submitQuery();
+}
+
+function clearHistory() {
+    queryHistory = [];
+    localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+    renderHistory();
+}
+
+function formatTimeAgo(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return date.toLocaleDateString('en-IN');
+}
+
+window.rerunQuery = rerunQuery;
 
 function buildChips() {
     EXAMPLE_QUERIES.forEach(q => {
@@ -91,6 +238,7 @@ async function submitQuery() {
     setLoading(true);
     hideError();
     hideResults();
+    historyPanel.classList.remove('show');
 
     try {
         const response = await fetch(`${API_URL}/query`, {
@@ -105,7 +253,9 @@ async function submitQuery() {
         if (data.error) {
             showError(data.error, data.sql);
         } else {
+            addToHistory(userQuery, data.row_count);
             renderResults(data);
+            renderSummaryCards(data);
             generateSummary(userQuery, data);
         }
     } catch (err) {
@@ -169,6 +319,82 @@ function generateSummary(userQuery, data) {
     showSummary(summaryText);
 }
 
+function renderSummaryCards(data) {
+    const colLower = data.columns.map(c => c.toLowerCase());
+    let totalCredit = 0;
+    let totalDebit = 0;
+    let totalBalance = 0;
+    let hasCredit = false;
+    let hasDebit = false;
+    let hasBalance = false;
+
+    const amountIdx = colLower.findIndex(c => c.includes("amount"));
+    const typeIdx = colLower.findIndex(c => c === "transaction_type" || c === "type");
+    const balanceIdx = colLower.findIndex(c => c.includes("balance"));
+
+    data.rows.forEach(row => {
+        if (amountIdx !== -1) {
+            const amt = parseFloat(row[amountIdx]);
+            if (!isNaN(amt)) {
+                if (typeIdx !== -1) {
+                    if (row[typeIdx] === "credit") {
+                        totalCredit += amt;
+                        hasCredit = true;
+                    } else if (row[typeIdx] === "debit") {
+                        totalDebit += amt;
+                        hasDebit = true;
+                    }
+                }
+            }
+        }
+        if (balanceIdx !== -1) {
+            const bal = parseFloat(row[balanceIdx]);
+            if (!isNaN(bal)) {
+                totalBalance += bal;
+                hasBalance = true;
+            }
+        }
+    });
+
+    let cardsHTML = '';
+
+    if (hasCredit) {
+        cardsHTML += `
+            <div class="summary-card">
+                <div class="summary-card-icon credit">💰</div>
+                <div class="summary-card-value" style="color:#4ade80;">₹${totalCredit.toLocaleString("en-IN")}</div>
+                <div class="summary-card-label">Total Credit</div>
+            </div>`;
+    }
+
+    if (hasDebit) {
+        cardsHTML += `
+            <div class="summary-card">
+                <div class="summary-card-icon debit">💸</div>
+                <div class="summary-card-value" style="color:#a78bfa;">₹${totalDebit.toLocaleString("en-IN")}</div>
+                <div class="summary-card-label">Total Debit</div>
+            </div>`;
+    }
+
+    if (hasBalance) {
+        cardsHTML += `
+            <div class="summary-card">
+                <div class="summary-card-icon balance">🏦</div>
+                <div class="summary-card-value" style="color:#60a5fa;">₹${totalBalance.toLocaleString("en-IN")}</div>
+                <div class="summary-card-label">Total Balance</div>
+            </div>`;
+    }
+
+    cardsHTML += `
+        <div class="summary-card">
+            <div class="summary-card-icon count">📊</div>
+            <div class="summary-card-value">${data.row_count}</div>
+            <div class="summary-card-label">Total Records</div>
+        </div>`;
+
+    summaryCards.innerHTML = cardsHTML;
+}
+
 async function showSummary(text) {
     summaryBox.style.display = "flex";
     summaryBox.querySelector(".summary-text").textContent = text;
@@ -198,7 +424,7 @@ function renderResults(data) {
     resultsSection.style.display = "block";
 
     statsBar.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.2);border-radius:999px;font-size:11px;font-family:'DM Mono',monospace;color:#f87171;letter-spacing:0.05em;">
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:999px;font-size:11px;font-family:'DM Mono',monospace;color:#a78bfa;letter-spacing:0.05em;">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
             ${data.row_count} row${data.row_count !== 1 ? "s" : ""} returned
         </span>
@@ -262,7 +488,7 @@ function buildChartFromData(data) {
     const chartData = resolveChartData(data.columns, data.rows);
 
     if (!chartData) {
-        panelChart.innerHTML = `<p style="color:#9f4040;padding:40px;text-align:center;font-size:12px;font-family:'DM Mono',monospace;">Chart not available for this result type.</p>`;
+        panelChart.innerHTML = `<p style="color:#7c3aed;padding:40px;text-align:center;font-size:12px;font-family:'DM Mono',monospace;">Chart not available for this result type.</p>`;
         return;
     }
 
@@ -275,7 +501,7 @@ function buildChartFromData(data) {
                 label: "Value",
                 data: chartData.values,
                 backgroundColor: [
-                    "rgba(220,38,38,0.8)",  "rgba(248,113,113,0.8)",
+                    "rgba(124,58,237,0.8)",  "rgba(167,139,250,0.8)",
                     "rgba(6,182,212,0.8)",   "rgba(99,102,241,0.8)",
                     "rgba(245,158,11,0.8)",  "rgba(239,68,68,0.8)",
                     "rgba(20,184,166,0.8)",  "rgba(139,92,246,0.8)",
@@ -302,16 +528,16 @@ function buildChartFromData(data) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: "rgba(220,38,38,0.07)" },
+                    grid: { color: "rgba(124,58,237,0.07)" },
                     ticks: {
-                        color: "#9f4040",
+                        color: "#7c3aed",
                         font: { family: "'DM Mono'" },
                         callback: val => Number(val) >= 1000 ? "₹" + Number(val).toLocaleString("en-IN") : val
                     }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: "#9f4040", font: { family: "'DM Mono'" } }
+                    ticks: { color: "#7c3aed", font: { family: "'DM Mono'" } }
                 }
             }
         }
@@ -472,6 +698,7 @@ function hideResults() {
     lastData = null;
     resultsSection.style.display = "none";
     summaryBox.style.display = "none";
+    summaryCards.innerHTML = "";
     panelData.innerHTML = "";
     panelChart.innerHTML = "";
     tabChart.style.display = "none";
@@ -561,8 +788,4 @@ function getTimestamp() {
     return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
 }
 
-submitBtn.addEventListener("click", submitQuery);
-queryInput.addEventListener("keydown", e => { if (e.key === "Enter") submitQuery(); });
-
-buildChips();
-initializeVoiceAssistant();
+initApp();
