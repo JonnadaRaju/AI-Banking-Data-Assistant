@@ -385,13 +385,6 @@ function renderSummaryCards(data) {
             </div>`;
     }
 
-    cardsHTML += `
-        <div class="summary-card">
-            <div class="summary-card-icon count">📊</div>
-            <div class="summary-card-value">${data.row_count}</div>
-            <div class="summary-card-label">Total Records</div>
-        </div>`;
-
     summaryCards.innerHTML = cardsHTML;
 }
 
