@@ -21,6 +21,7 @@ OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
 POSTGRES_URL: str = os.getenv("POSTGRES_URL", "").strip()
+SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "").strip()
 
 MAX_RETRIES: int = _env_int("MAX_RETRIES", 3)
 RETRY_DELAY: int = _env_int("RETRY_DELAY", 20)
