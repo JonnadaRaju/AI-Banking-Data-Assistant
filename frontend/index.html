@@ -16,20 +16,20 @@
                     },
                     colors: {
                         brand: {
-                            300: '#fca5a5',
-                            400: '#f87171',
-                            500: '#dc2626',
-                            600: '#b91c1c',
-                            700: '#991b1b',
-                            800: '#7f1d1d',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#7c3aed',
+                            600: '#6d28d9',
+                            700: '#5b21b6',
+                            800: '#4c1d95',
                         },
                         surface: {
-                            900: '#0f0808',
-                            800: '#1a0d0d',
-                            700: '#201212',
-                            600: '#291717',
-                            500: '#1e3328',
-                            400: '#402626',
+                            900: '#0a0814',
+                            800: '#130d1f',
+                            700: '#1a1229',
+                            600: '#221733',
+                            500: '#1e2938',
+                            400: '#2d2640',
                         }
                     },
                     keyframes: {
@@ -47,21 +47,93 @@
     <style>
         * { box-sizing: border-box; }
         body {
-            background-color: #0f0808;
+            background-color: #0a0814;
             font-family: 'Syne', sans-serif;
         }
 
+        /* Light theme */
+        body.light {
+            background-color: #f8fafc;
+        }
+        body.light .sidebar {
+            background: #ffffff;
+            border-right: 1px solid #e2e8f0;
+        }
+        body.light .sidebar-logo,
+        body.light .nav-item,
+        body.light .sidebar-footer {
+            color: #1e293b;
+        }
+        body.light .nav-item:hover,
+        body.light .nav-item.active {
+            background: rgba(124,58,237,0.08);
+            color: #7c3aed;
+        }
+        body.light .main-content {
+            background: #f1f5f9;
+        }
+        body.light .query-card,
+        body.light .results-card,
+        body.light .summary-card,
+        body.light .history-card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+        }
+        body.light .query-card h3,
+        body.light .query-input,
+        body.light .results-card h3 {
+            color: #1e293b;
+        }
+        body.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        body.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        body.light .header h1 { color: #0f172a; }
+        body.light .header p { color: #64748b; }
+        body.light body::before { display: none; }
+        body.light body::after { display: none; }
+        body.light #queryInput {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+        body.light .chip {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+        body.light .chip:hover {
+            background: rgba(124,58,237,0.08);
+            border-color: rgba(124,58,237,0.3);
+            color: #7c3aed;
+        }
+        body.light #resultsTable thead th {
+            background: rgba(124,58,237,0.06);
+            color: #7c3aed;
+            border-color: #e2e8f0;
+        }
+        body.light #resultsTable tbody td {
+            color: #334155;
+        }
+        body.light .tab-btn { color: #64748b; }
+        body.light .tab-btn.active {
+            background: rgba(124,58,237,0.08);
+            color: #7c3aed;
+        }
+        body.light .empty-result p,
+        body.light .value-label { color: #64748b; }
+        body.light .online-indicator span { color: #059669; }
+        body.light .theme-toggle { color: #64748b; }
+
         /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: #1a0d0d; }
-        ::-webkit-scrollbar-thumb { background: #b91c1c; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #130d1f; }
+        ::-webkit-scrollbar-thumb { background: #6d28d9; border-radius: 4px; }
 
         /* Dot grid background */
         body::before {
             content: '';
             position: fixed;
             inset: 0;
-            background-image: radial-gradient(rgba(220,38,38,0.10) 1px, transparent 1px);
+            background-image: radial-gradient(rgba(124,58,237,0.10) 1px, transparent 1px);
             background-size: 28px 28px;
             pointer-events: none;
             z-index: 0;
@@ -76,18 +148,112 @@
             transform: translateX(-50%);
             width: 800px;
             height: 400px;
-            background: radial-gradient(ellipse, rgba(220,38,38,0.08) 0%, transparent 70%);
+            background: radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 70%);
             pointer-events: none;
             z-index: 0;
         }
 
         .z1 { position: relative; z-index: 1; }
 
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 240px;
+            background: #130d1f;
+            border-right: 1px solid rgba(124,58,237,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-logo {
+            padding: 24px 20px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #a78bfa;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 12px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #7c3aed;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            margin-bottom: 4px;
+        }
+        .nav-item:hover {
+            background: rgba(124,58,237,0.08);
+            color: #a78bfa;
+        }
+        .nav-item.active {
+            background: rgba(124,58,237,0.12);
+            color: #a78bfa;
+        }
+        .nav-item svg { width: 18px; height: 18px; }
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid rgba(124,58,237,0.1);
+        }
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: #7c3aed;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .theme-toggle:hover {
+            background: rgba(124,58,237,0.08);
+            color: #a78bfa;
+        }
+
+        /* Mobile sidebar */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.show { display: block; }
+            .main-content { margin-left: 0 !important; }
+            .mobile-header { display: flex !important; }
+        }
+
+        /* Main content */
+        .main-content {
+            margin-left: 240px;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
         /* Input focus glow */
         #queryInput:focus {
             outline: none;
-            border-color: rgba(220,38,38,0.5);
-            box-shadow: 0 0 0 3px rgba(220,38,38,0.08), 0 0 24px rgba(220,38,38,0.08);
+            border-color: rgba(124,58,237,0.5);
+            box-shadow: 0 0 0 3px rgba(124,58,237,0.08), 0 0 24px rgba(124,58,237,0.08);
         }
 
         /* Chip */
@@ -95,19 +261,19 @@
             display: inline-block;
             padding: 5px 12px;
             background: rgba(18,32,24,0.9);
-            border: 1px solid rgba(220,38,38,0.15);
+            border: 1px solid rgba(124,58,237,0.15);
             border-radius: 8px;
             font-size: 11px;
             font-family: 'DM Mono', monospace;
-            color: #b06060;
+            color: #8b5cf6;
             cursor: pointer;
             transition: all 0.18s ease;
             white-space: nowrap;
         }
         .chip:hover {
-            background: rgba(220,38,38,0.12);
-            border-color: rgba(220,38,38,0.45);
-            color: #f87171;
+            background: rgba(124,58,237,0.12);
+            border-color: rgba(124,58,237,0.45);
+            color: #a78bfa;
             transform: translateY(-1px);
         }
 
@@ -121,23 +287,23 @@
             border-radius: 8px 8px 0 0;
             border: 1px solid transparent;
             border-bottom: none;
-            color: #9f4040;
+            color: #7c3aed;
             cursor: pointer;
             transition: all 0.18s ease;
             background: transparent;
         }
-        .tab-btn:hover:not(.active) { color: #b06060; background: rgba(255,255,255,0.02); }
+        .tab-btn:hover:not(.active) { color: #8b5cf6; background: rgba(255,255,255,0.02); }
         .tab-btn.active {
-            background: rgba(220,38,38,0.1);
-            border-color: rgba(220,38,38,0.2);
-            color: #f87171;
+            background: rgba(124,58,237,0.1);
+            border-color: rgba(124,58,237,0.2);
+            color: #a78bfa;
         }
 
         /* Table */
         #resultsTable { width: 100%; border-collapse: collapse; }
         #resultsTable thead th {
-            background: rgba(220,38,38,0.07);
-            color: #f87171;
+            background: rgba(124,58,237,0.07);
+            color: #a78bfa;
             font-family: 'DM Mono', monospace;
             font-size: 10.5px;
             font-weight: 500;
@@ -145,26 +311,26 @@
             letter-spacing: 0.09em;
             padding: 11px 16px;
             text-align: left;
-            border-bottom: 1px solid rgba(220,38,38,0.15);
+            border-bottom: 1px solid rgba(124,58,237,0.15);
             white-space: nowrap;
         }
         #resultsTable tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.12s; }
-        #resultsTable tbody tr:hover { background: rgba(220,38,38,0.04); }
+        #resultsTable tbody tr:hover { background: rgba(124,58,237,0.04); }
         #resultsTable tbody td {
             padding: 10px 16px;
             font-size: 12.5px;
-            color: #7aaa8e;
+            color: #a78bfa;
             font-family: 'DM Mono', monospace;
         }
         #resultsTable td.credit { color: #4ade80; font-weight: 500; }
-        #resultsTable td.debit  { color: #f87171; font-weight: 500; }
+        #resultsTable td.debit  { color: #a78bfa; font-weight: 500; }
         #resultsTable td.amount { color: #e2f5eb; font-weight: 600; }
 
         /* Spinner */
         .spinner {
             width: 22px; height: 22px;
-            border: 2px solid rgba(220,38,38,0.12);
-            border-top-color: #dc2626;
+            border: 2px solid rgba(124,58,237,0.12);
+            border-top-color: #7c3aed;
             border-radius: 50%;
             animation: spin 0.65s linear infinite;
             flex-shrink: 0;
@@ -175,7 +341,7 @@
         #voiceBtn.recording {
             background: rgba(239,68,68,0.1) !important;
             border-color: rgba(239,68,68,0.4) !important;
-            color: #f87171 !important;
+            color: #a78bfa !important;
             animation: blink 1s ease-in-out infinite;
         }
 
@@ -185,13 +351,13 @@
             align-items: center;
             gap: 12px;
             padding: 11px 16px;
-            background: rgba(220,38,38,0.05);
-            border: 1px solid rgba(220,38,38,0.18);
+            background: rgba(124,58,237,0.05);
+            border: 1px solid rgba(124,58,237,0.18);
             border-radius: 12px;
             margin-bottom: 14px;
             font-size: 12px;
             font-family: 'DM Mono', monospace;
-            color: #b06060;
+            color: #8b5cf6;
         }
         .export-btn {
             padding: 6px 14px;
@@ -203,55 +369,257 @@
             transition: all 0.18s ease;
             letter-spacing: 0.03em;
         }
-        .btn-pdf { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+        .btn-pdf { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #c4b5fd; }
         .btn-pdf:hover { background: rgba(239,68,68,0.18); }
-        .btn-csv { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.25); color: #fca5a5; }
-        .btn-csv:hover { background: rgba(220,38,38,0.18); }
+        .btn-csv { background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.25); color: #c4b5fd; }
+        .btn-csv:hover { background: rgba(124,58,237,0.18); }
 
         /* Chart canvas */
         #myChart { max-height: 300px; }
 
         /* Single value */
         .single-value { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px; gap: 10px; }
-        .value-number { font-size: 52px; font-weight: 800; color: #f87171; letter-spacing: -0.03em; font-family: 'Syne', sans-serif; }
-        .value-label { font-size: 11px; color: #9f4040; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.12em; }
+        .value-number { font-size: 52px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; font-family: 'Syne', sans-serif; }
+        .value-label { font-size: 11px; color: #7c3aed; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.12em; }
 
         /* Empty */
         .empty-result { display: flex; flex-direction: column; align-items: center; padding: 52px 24px; gap: 10px; }
         .empty-icon { font-size: 32px; }
-        .empty-result p { color: #9f4040; font-size: 13px; font-family: 'DM Mono', monospace; }
+        .empty-result p { color: #7c3aed; font-size: 13px; font-family: 'DM Mono', monospace; }
 
         /* Results fade */
         #resultsSection { animation: fadeUp 0.32s ease forwards; }
 
         /* Submit disabled */
         #submitBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            background: #130d1f;
+            border: 1px solid rgba(124,58,237,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .summary-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .summary-card-icon.credit { background: rgba(34,197,94,0.1); }
+        .summary-card-icon.debit { background: rgba(239,68,68,0.1); }
+        .summary-card-icon.balance { background: rgba(59,130,246,0.1); }
+        .summary-card-icon.count { background: rgba(168,85,247,0.1); }
+        .summary-card-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #a78bfa;
+            font-family: 'Syne', sans-serif;
+        }
+        .summary-card-label {
+            font-size: 11px;
+            color: #7c3aed;
+            font-family: 'DM Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* History Panel */
+        .history-panel {
+            display: none;
+            background: #130d1f;
+            border: 1px solid rgba(124,58,237,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .history-panel.show { display: block; }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .history-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #a78bfa;
+        }
+        .history-clear {
+            font-size: 11px;
+            color: #7c3aed;
+            cursor: pointer;
+            font-family: 'DM Mono', monospace;
+        }
+        .history-clear:hover { color: #a78bfa; }
+        .history-item {
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            border: 1px solid transparent;
+        }
+        .history-item:hover {
+            background: rgba(124,58,237,0.08);
+            border-color: rgba(124,58,237,0.15);
+        }
+        .history-query {
+            font-size: 13px;
+            color: #e2f5eb;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-meta {
+            font-size: 10px;
+            color: #7c3aed;
+            font-family: 'DM Mono', monospace;
+            display: flex;
+            gap: 12px;
+        }
+        .history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7c3aed;
+            font-size: 13px;
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(124,58,237,0.05) 25%, rgba(124,58,237,0.1) 50%, rgba(124,58,237,0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-card {
+            height: 100px;
+            border-radius: 16px;
+        }
+        .skeleton-table {
+            height: 200px;
+        }
+
+        /* Voice waveform */
+        .voice-waveform {
+            display: none;
+            align-items: center;
+            gap: 3px;
+            height: 24px;
+            margin-left: 8px;
+        }
+        .voice-waveform.show { display: flex; }
+        .wave-bar {
+            width: 3px;
+            background: #a78bfa;
+            border-radius: 2px;
+            animation: wave 0.5s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(1) { height: 12px; animation-delay: 0s; }
+        .wave-bar:nth-child(2) { height: 18px; animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { height: 14px; animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { height: 16px; animation-delay: 0.4s; }
+        @keyframes wave {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.5); }
+        }
+
+        /* Keyboard hints */
+        .keyboard-hint {
+            font-size: 10px;
+            color: #7c3aed;
+            font-family: 'DM Mono', monospace;
+            margin-left: 8px;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body class="min-h-screen">
 
-<div class="z1 max-w-6xl mx-auto px-4 py-10">
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <span>🏦</span>
+        <span>Banking AI</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-item active" data-view="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Home</span>
+        </div>
+        <div class="nav-item" data-view="history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>History</span>
+        </div>
+        <div class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Settings</span>
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="theme-toggle" id="themeToggle">
+            <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <span>Light Mode</span>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+    
+    <!-- Mobile Header -->
+    <div class="mobile-header" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <button id="menuBtn" style="background:none;border:none;color:#a78bfa;cursor:pointer;padding:8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <span style="color:#a78bfa;font-weight:600;">AI Banking Assistant</span>
+        <div style="width:40px;"></div>
+    </div>
 
     <!-- Header -->
-    <header class="flex items-center gap-3.5 mb-9">
+    <header class="header flex items-center gap-3.5 mb-9">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-             style="background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.2);">
+             style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.2);">
             🏦
         </div>
         <div class="flex-1">
             <h1 class="text-lg font-bold text-white tracking-tight leading-none">AI Banking Data Assistant</h1>
-            <p class="text-xs mt-1" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.08em;">NATURAL LANGUAGE → SQL → RESULTS</p>
+            <p class="text-xs mt-1" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.08em;">NATURAL LANGUAGE → SQL → RESULTS</p>
         </div>
-        <div class="flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full" style="background:#dc2626; animation:blink 1.4s ease-in-out infinite;"></span>
-            <span class="text-xs" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.05em;">ONLINE</span>
+        <div class="online-indicator flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full" style="background:#7c3aed; animation:blink 1.4s ease-in-out infinite;"></span>
+            <span class="text-xs" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.05em;">ONLINE</span>
         </div>
     </header>
 
     <!-- Query Card -->
-    <div class="rounded-2xl p-5 mb-4" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
+    <div class="query-card rounded-2xl p-5 mb-4" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.4);">
 
-        <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#9f4040; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
+        <p class="text-xs mb-3.5" style="font-family:'DM Mono',monospace; color:#7c3aed; letter-spacing:0.1em; text-transform:uppercase;">What would you like to know?</p>
 
         <!-- Input row -->
         <div class="flex gap-2 mb-3">
@@ -261,31 +629,45 @@
                 placeholder="e.g. Show last 10 transactions above 10,000"
                 autocomplete="off"
                 class="flex-1 rounded-xl px-4 py-2.5 text-sm text-white transition-all duration-200"
-                style="background:#201212; border:1px solid rgba(220,38,38,0.12); font-family:'Syne',sans-serif; color:rgba(255,255,255,0.9);"
+                style="background:#1a1229; border:1px solid rgba(124,58,237,0.12); font-family:'Syne',sans-serif; color:rgba(255,255,255,0.9);"
             />
             <button
                 id="voiceBtn"
                 title="Ask with voice"
                 class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all duration-200"
-                style="background:#201212; border:1px solid rgba(220,38,38,0.12); color:#9f4040;"
-                onmouseover="this.style.borderColor='rgba(220,38,38,0.35)'; this.style.color='#f87171';"
-                onmouseout="this.style.borderColor='rgba(220,38,38,0.12)'; this.style.color='#9f4040';"
+                style="background:#1a1229; border:1px solid rgba(124,58,237,0.12); color:#7c3aed;"
+                onmouseover="this.style.borderColor='rgba(124,58,237,0.35)'; this.style.color='#a78bfa';"
+                onmouseout="this.style.borderColor='rgba(124,58,237,0.12)'; this.style.color='#7c3aed';"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
             </button>
             <button
                 id="submitBtn"
                 class="px-5 h-10 rounded-xl text-sm font-semibold tracking-wide flex-shrink-0 transition-all duration-200"
-                style="background:#b91c1c; color:white;"
-                onmouseover="if(!this.disabled) this.style.background='#dc2626';"
-                onmouseout="if(!this.disabled) this.style.background='#b91c1c';"
+                style="background:#6d28d9; color:white;"
+                onmouseover="if(!this.disabled) this.style.background='#7c3aed';"
+                onmouseout="if(!this.disabled) this.style.background='#6d28d9';"
             >
                 Ask
             </button>
+            <!-- Voice waveform -->
+            <div class="voice-waveform" id="voiceWaveform">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+            </div>
+        </div>
+
+        <!-- Keyboard hints -->
+        <div class="flex items-center gap-4 mb-3" style="font-size:10px;color:#7c3aed;font-family:'DM Mono',monospace;">
+            <span><kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Ctrl</kbd> + <kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Enter</kbd> to submit</span>
+            <span><kbd style="background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(124,58,237,0.2);">Esc</kbd> to clear</span>
         </div>
 
         <!-- Voice status -->
-        <div id="voiceStatus" class="min-h-[14px] mb-3 text-xs" style="font-family:'DM Mono',monospace; color:#9f4040;"></div>
+        <div id="voiceStatus" class="min-h-[14px] mb-3 text-xs" style="font-family:'DM Mono',monospace; color:#7c3aed;"></div>
 
         <!-- Example chips -->
         <div>
@@ -294,28 +676,51 @@
         </div>
     </div>
 
+    <!-- History Panel -->
+    <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <span class="history-title">Query History</span>
+            <span class="history-clear" id="clearHistory">Clear All</span>
+        </div>
+        <div id="historyList"></div>
+    </div>
+
+    <!-- Skeleton Loading -->
+    <div id="skeletonLoading" style="display:none;">
+        <div class="summary-cards">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+        <div class="skeleton skeleton-table" style="border-radius:16px;"></div>
+    </div>
+
     <!-- Loading -->
-    <div id="loading" style="display:none;" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl mb-4" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1);">
+    <div id="loading" style="display:none;" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl mb-4" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1);">
         <div class="spinner"></div>
         <div>
             <p class="text-sm font-medium text-white">Processing your query</p>
-            <p class="text-xs mt-0.5" style="font-family:'DM Mono',monospace; color:#9f4040;">generating sql · querying database...</p>
+            <p class="text-xs mt-0.5" style="font-family:'DM Mono',monospace; color:#7c3aed;">generating sql · querying database...</p>
         </div>
     </div>
 
     <!-- Error -->
-    <div id="errorBox" style="display:none;" class="rounded-2xl px-5 py-4 mb-4 text-sm" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); color:#fca5a5; font-family:'DM Mono',monospace;"></div>
+    <div id="errorBox" style="display:none;" class="rounded-2xl px-5 py-4 mb-4 text-sm" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); color:#c4b5fd; font-family:'DM Mono',monospace;"></div>
 
     <!-- Results -->
     <div id="resultsSection" style="display:none;">
+
+        <!-- Summary Cards -->
+        <div class="summary-cards" id="summaryCards"></div>
 
         <!-- Stats bar -->
         <div id="statsBar" class="flex items-center gap-2.5 mb-3"></div>
 
         <!-- Results card -->
-        <div class="rounded-2xl overflow-hidden mb-3" style="background:#1a0d0d; border:1px solid rgba(220,38,38,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.35);">
+        <div class="results-card rounded-2xl overflow-hidden mb-3" style="background:#130d1f; border:1px solid rgba(124,58,237,0.1); box-shadow:0 4px 40px rgba(0,0,0,0.35);">
             <!-- Tab header -->
-            <div class="flex gap-1 px-4 pt-3" style="border-bottom:1px solid rgba(220,38,38,0.08);">
+            <div class="flex gap-1 px-4 pt-3" style="border-bottom:1px solid rgba(124,58,237,0.08);">
                 <button id="tabData" class="tab-btn active">📋 Data</button>
                 <button id="tabChart" class="tab-btn" style="display:none;">📊 Chart</button>
             </div>
@@ -325,14 +730,14 @@
         </div>
 
         <!-- Summary -->
-        <div id="summaryBox" style="display:none;" class="flex gap-3 items-start rounded-2xl px-5 py-4" style="background:rgba(220,38,38,0.05); border:1px solid rgba(220,38,38,0.12);">
+        <div id="summaryBox" style="display:none;" class="summary-card flex gap-3 items-start rounded-2xl px-5 py-4" style="background:rgba(124,58,237,0.05); border:1px solid rgba(124,58,237,0.12);">
             <span class="text-base flex-shrink-0 mt-0.5">💡</span>
-            <p class="summary-text text-sm leading-relaxed" style="font-family:'DM Mono',monospace; color:#b06060;"></p>
+            <p class="summary-text text-sm leading-relaxed" style="font-family:'DM Mono',monospace; color:#8b5cf6;"></p>
         </div>
 
     </div>
 
-</div>
+</main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
