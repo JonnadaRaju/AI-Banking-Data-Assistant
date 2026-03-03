@@ -14,7 +14,7 @@ We built a full-stack AI-powered assistant that acts as a bridge between non-tec
 
 The core idea is a 3-layer pipeline:
 
-1. **AI Layer** — Converts the user's natural language question into a valid SQL query using an OpenAI model (configurable, default `gpt-4o-mini`). The full database schema is passed to the model so it understands table relationships and generates accurate JOINs.
+1. **AI Layer** — Converts the user's natural language question into a valid SQL query using an OpenRouter model (configurable, default `meta-llama/llama-3.3-70b-instruct:free`). The full database schema is passed to the model so it understands table relationships and generates accurate JOINs.
 
 2. **Security Layer** — Every AI-generated SQL query is validated before execution. Only SELECT statements are allowed. Any query containing INSERT, UPDATE, DELETE, DROP, or other harmful keywords is blocked immediately and never reaches the database.
 
@@ -31,22 +31,22 @@ User types a natural language question in the browser
 Frontend (index.html + app.js)
         │  POST /query  { "user_query": "..." }
         ▼
-Go Backend (`backend-go/cmd/server/main.go`)
-        │  JSON request validation
+Python Backend (backend/main.py)
+        │  FastAPI request validation
         ▼
-NLP Service (`backend-go/internal/nlp/service.go`)
-        │  Sends query + database schema to the OpenAI API
+NLP Service (backend/services/nlp_service.py)
+        │  Sends query + database schema to OpenRouter API
         │  Receives back a SQL SELECT statement
         ▼
-Validator (`backend-go/internal/validator/validator.go`)
+Validator (backend/services/validator.py)
         │  Checks SQL is read-only (SELECT only)
         │  Blocks INSERT / UPDATE / DELETE / DROP / ALTER
         ▼
-DB Service (`backend-go/internal/db/service.go`)
+DB Service (backend/services/db_service.py)
         │  Executes validated SQL against Supabase Postgres
         │  Returns column names + rows + optional chart data
         ▼
-Go HTTP Response
+FastAPI Response
         │  Returns structured JSON { columns, rows, row_count, chart_data, error }
         ▼
 Frontend renders results
@@ -60,11 +60,11 @@ Frontend renders results
 ## Tech Stack
 
 ### Backend
-- Go 1.22+
-- net/http
+- Python 3.12+
+- FastAPI
 - Supabase Postgres
-- OpenAI API (chat completions)
-- Configurable model (default `gpt-4o-mini`)
+- OpenRouter API (chat completions)
+- Configurable model (default `meta-llama/llama-3.3-70b-instruct:free`)
 
 ### Frontend
 - HTML5
@@ -78,12 +78,12 @@ Frontend renders results
 
 ---
 
-## Run Backend (Go)
+## Run Backend (Python)
 
 ```bash
-cd backend-go
-go mod tidy
-go run ./cmd/server
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 The API starts on `http://127.0.0.1:8000` by default.
