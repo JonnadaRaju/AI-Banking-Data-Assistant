@@ -198,8 +198,10 @@ function renderResults(data) {
     resultsSection.style.display = "block";
 
     statsBar.innerHTML = `
-        <span class="badge">${data.row_count} row${data.row_count !== 1 ? "s" : ""}</span>
-        <span>returned</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.2);border-radius:999px;font-size:11px;font-family:'DM Mono',monospace;color:#f87171;letter-spacing:0.05em;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            ${data.row_count} row${data.row_count !== 1 ? "s" : ""} returned
+        </span>
     `;
 
     if (data.row_count === 0) {
@@ -260,7 +262,7 @@ function buildChartFromData(data) {
     const chartData = resolveChartData(data.columns, data.rows);
 
     if (!chartData) {
-        panelChart.innerHTML = `<p style="color:#888;padding:32px;text-align:center;font-size:14px;">Chart not available for this result type.</p>`;
+        panelChart.innerHTML = `<p style="color:#9f4040;padding:40px;text-align:center;font-size:12px;font-family:'DM Mono',monospace;">Chart not available for this result type.</p>`;
         return;
     }
 
@@ -273,11 +275,11 @@ function buildChartFromData(data) {
                 label: "Value",
                 data: chartData.values,
                 backgroundColor: [
-                    "rgba(15,52,96,0.85)",   "rgba(6,182,212,0.85)",
-                    "rgba(16,185,129,0.85)", "rgba(245,158,11,0.85)",
-                    "rgba(139,92,246,0.85)", "rgba(239,68,68,0.85)",
-                    "rgba(59,130,246,0.85)", "rgba(249,115,22,0.85)",
-                    "rgba(20,184,166,0.85)", "rgba(99,102,241,0.85)"
+                    "rgba(220,38,38,0.8)",  "rgba(248,113,113,0.8)",
+                    "rgba(6,182,212,0.8)",   "rgba(99,102,241,0.8)",
+                    "rgba(245,158,11,0.8)",  "rgba(239,68,68,0.8)",
+                    "rgba(20,184,166,0.8)",  "rgba(139,92,246,0.8)",
+                    "rgba(249,115,22,0.8)",  "rgba(16,185,129,0.8)"
                 ],
                 borderRadius: 6,
                 borderWidth: 0
@@ -300,10 +302,17 @@ function buildChartFromData(data) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: "rgba(0,0,0,0.05)" },
-                    ticks: { callback: val => Number(val) >= 1000 ? "₹" + Number(val).toLocaleString("en-IN") : val }
+                    grid: { color: "rgba(220,38,38,0.07)" },
+                    ticks: {
+                        color: "#9f4040",
+                        font: { family: "'DM Mono'" },
+                        callback: val => Number(val) >= 1000 ? "₹" + Number(val).toLocaleString("en-IN") : val
+                    }
                 },
-                x: { grid: { display: false } }
+                x: {
+                    grid: { display: false },
+                    ticks: { color: "#9f4040", font: { family: "'DM Mono'" } }
+                }
             }
         }
     });
@@ -445,8 +454,13 @@ function setLoading(show) {
 function showError(message, sql = null) {
     errorBox.style.display = "block";
     errorBox.innerHTML = `
-        <strong>⚠ Error</strong><br>${escapeHtml(message)}
-        ${sql ? `<br><br><small>Generated SQL: <code>${escapeHtml(sql)}</code></small>` : ""}`;
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:14px;flex-shrink:0;margin-top:1px;">⚠</span>
+            <div>
+                <div style="font-weight:600;margin-bottom:4px;color:#fca5a5;">${escapeHtml(message)}</div>
+                ${sql ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:6px;font-size:11px;color:#7aaa8e;word-break:break-all;">SQL: ${escapeHtml(sql)}</div>` : ""}
+            </div>
+        </div>`;
 }
 
 function hideError() {
