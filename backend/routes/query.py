@@ -66,7 +66,8 @@ async def health_check():
 
 
 @router.get("/config")
-async def get_frontend_config():
-    return JSONResponse(content={
-        "sarvam_api_key": os.getenv("SARVAM_API_KEY", "")
-    })
+async def get_config():
+    from backend.config import SARVAM_API_KEY
+    return {
+        "sarvam_api_key": SARVAM_API_KEY
+    }
