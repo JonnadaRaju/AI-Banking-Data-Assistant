@@ -1,4 +1,3 @@
-const API_URL = "https://ai-banking-data-assistant-backend.onrender.com";
 let chartInstance = null;
 let lastData = null;
 
