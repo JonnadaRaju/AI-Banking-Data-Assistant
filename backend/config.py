@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Always find .env relative to this file, works regardless of working directory
+_BASE_DIR = Path(__file__).resolve().parent.parent  # project root
+load_dotenv(_BASE_DIR / ".env")
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -15,7 +18,7 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 
 
 OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
+OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
 POSTGRES_URL: str = os.getenv("POSTGRES_URL", "").strip()
 

@@ -1,8 +1,8 @@
 import re
-import time
 import logging
 import openai
 from openai import OpenAI
+import time
 
 from backend.config import (
     OPENROUTER_API_KEY,
@@ -17,46 +17,47 @@ from backend.services.validator import clean_sql
 logger = logging.getLogger(__name__)
 
 FREE_MODEL_FALLBACKS = [
-    "meta-llama/llama-3.3-70b-instruct:free",        
-    "nvidia/nemotron-nano-12b-v2:free",              
-    "google/gemma-3-27b-it:free",                     
-    "openai/gpt-oss-120b:free",                       
-    "openai/gpt-oss-20b:free",                        
-    "nvidia/nemotron-nano-9b-v2:free",                
+    "arcee-ai/arcee-prism:free",           
+    "stepfun-ai/step-3.5-flash:free",      
+    "nvidia/nemotron-3-nano-30b-a3b:free", 
+    "meta-llama/llama-3.3-70b-instruct:free", 
+    "openai/gpt-oss-120b:free",            
+    "google/gemma-3-27b-it:free",          
+    "qwen/qwen3-coder-480b-a35b:free",     
     "mistralai/mistral-small-3.1-24b-instruct:free",  
-    "qwen/qwen3-4b:free",                             
-    "nous/hermes-3-405b:free",                        
-    "google/gemma-3-12b-it:free",                     
+    "qwen/qwen3-4b:free",                  
+    "google/gemma-3-12b-it:free",          
 ]
+
 
 DB_SCHEMA = """
 CREATE TABLE customers (
-    customer_id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT,
-    phone TEXT,
-    address TEXT,
-    created_at TIMESTAMP
+    customer_id   SERIAL PRIMARY KEY,
+    name          TEXT NOT NULL,
+    email         TEXT UNIQUE NOT NULL,
+    phone         TEXT,
+    address       TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE accounts (
-    account_id INTEGER PRIMARY KEY,
-    customer_id INTEGER,
-    account_number TEXT,
-    account_type TEXT,
-    balance NUMERIC,
-    created_at TIMESTAMP,
-    FOREIGN KEY(customer_id) REFERENCES customers(customer_id)
+    account_id     SERIAL PRIMARY KEY,
+    customer_id    INTEGER NOT NULL,
+    account_number TEXT UNIQUE NOT NULL,
+    account_type   TEXT CHECK(account_type IN ('savings','current','fixed')) NOT NULL,
+    balance        NUMERIC DEFAULT 0.0,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
 );
 
 CREATE TABLE transactions (
-    transaction_id INTEGER PRIMARY KEY,
-    account_id INTEGER,
-    amount NUMERIC,
-    transaction_type TEXT,
-    description TEXT,
-    transaction_date TIMESTAMP,
-    FOREIGN KEY(account_id) REFERENCES accounts(account_id)
+    transaction_id   SERIAL PRIMARY KEY,
+    account_id       INTEGER NOT NULL,
+    amount           NUMERIC NOT NULL,
+    transaction_type TEXT CHECK(transaction_type IN ('credit','debit')) NOT NULL,
+    description      TEXT,
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
 );
 """
 
@@ -73,6 +74,10 @@ Rules:
 - For today use: CURRENT_DATE
 - For this week use: CURRENT_DATE - INTERVAL '7 days'
 - Use aliases: c for customers, a for accounts, t for transactions
+- account_type values are exactly: 'savings', 'current', 'fixed'
+- transaction_type values are exactly: 'credit', 'debit'
+- To filter by account number use account_number (TEXT), not account_id (SERIAL)
+- customer_id, account_id, transaction_id are auto-generated serials — never assume their values
 - Return ONLY the SQL query, no explanation, no markdown, no backticks
 
 Question: {user_query}"""
@@ -96,71 +101,60 @@ def query_to_sql(user_query: str) -> str:
     for model in models_to_try:
         if not model:
             continue
-        for attempt in range(1, MAX_RETRIES + 1):
-            try:
-                logger.info(f"Trying model: {model} (attempt {attempt})")
-                result = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": "Generate one safe PostgreSQL SELECT query only."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    max_tokens=300,
-                    temperature=0.1,
-                )
-                content = ""
-                if result and result.choices:
-                    content = result.choices[0].message.content or ""
+        try:
+            logger.info(f"Trying model: {model}")
+            result = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "Generate one safe PostgreSQL SELECT query only."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=300,
+                temperature=0.1,
+            )
+            content = ""
+            if result and result.choices:
+                content = result.choices[0].message.content or ""
 
-                raw_sql = _extract_sql(content)
-                if not raw_sql:
-                    raise Exception("AI model returned an empty response.")
+            raw_sql = _extract_sql(content)
+            if not raw_sql:
+                raise Exception("AI model returned an empty response.")
 
-                sql = clean_sql(raw_sql)
-                logger.info(f"SQL generated by {model}: {sql}")
-                return sql
+            sql = clean_sql(raw_sql)
+            logger.info(f"SQL generated by {model}: {sql}")
+            return sql
 
-            except openai.APIStatusError as e:
-                status = e.status_code
-                last_error = e
+        except openai.APIStatusError as e:
+            status = e.status_code
+            last_error = e
 
-                # Model unavailable → skip immediately
-                if status in (400, 403, 404):
-                    logger.warning(f"Model {model} unavailable (HTTP {status}), skipping...")
-                    break
+            if status in (400, 403, 404):
+                logger.warning(f"Model {model} unavailable (HTTP {status}), skipping...")
+                continue
 
-                # Rate limit → try next model immediately
-                if status == 429:
-                    logger.warning(f"Rate limit on {model}, trying next...")
-                    time.sleep(2)
-                    break
+            if status == 429:
+                logger.warning(f"Rate limit on {model}, trying next...")
+                time.sleep(2)
+                continue
 
-                if attempt < MAX_RETRIES:
-                    time.sleep(5)
-                    continue
-                break
+            logger.error(f"API error with {model}: {e}")
+            continue
 
-            except openai.AuthenticationError:
-                raise Exception("Invalid OpenRouter API key. Check your .env file.")
+        except openai.AuthenticationError:
+            raise Exception("Invalid OpenRouter API key. Check your .env file.")
 
-            except openai.APIConnectionError:
-                raise Exception("Cannot connect to OpenRouter. Check your internet connection.")
+        except openai.APIConnectionError:
+            raise Exception("Cannot connect to OpenRouter. Check your internet connection.")
 
-            except (openai.APITimeoutError, TimeoutError):
-                last_error = Exception("Timeout")
-                if attempt < MAX_RETRIES:
-                    time.sleep(3)
-                    continue
-                break
+        except (openai.APITimeoutError, TimeoutError):
+            logger.warning(f"Timeout on {model}, trying next...")
+            continue
 
-            except Exception as e:
-                last_error = e
-                if attempt < MAX_RETRIES:
-                    time.sleep(3)
-                    continue
-                break
+        except Exception as e:
+            logger.error(f"Error with {model}: {e}")
+            continue
 
-    raise Exception("All AI models are currently unavailable. Please wait 60 seconds and try again.")
+    raise Exception("All AI models are currently unavailable. Please try again later.")
 
 
 def _extract_sql(response: str) -> str:
