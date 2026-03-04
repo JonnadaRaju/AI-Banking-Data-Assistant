@@ -1,10 +1,7 @@
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Always find .env relative to this file, works regardless of working directory
-_BASE_DIR = Path(__file__).resolve().parent.parent  # project root
-load_dotenv(_BASE_DIR / ".env")
+load_dotenv()
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -20,8 +17,15 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
+
+# DB — supports both POSTGRES_URL and SUPABASE_DB_URL
 POSTGRES_URL: str = os.getenv("POSTGRES_URL", "").strip()
+SUPABASE_DB_URL: str = os.getenv("SUPABASE_DB_URL", "").strip() or POSTGRES_URL
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "").strip()
+
 SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "").strip()
+SARVAM_STT_ENDPOINT: str = os.getenv("SARVAM_STT_ENDPOINT", "https://api.sarvam.ai/speech-to-text").strip()
 
 MAX_RETRIES: int = _env_int("MAX_RETRIES", 3)
 RETRY_DELAY: int = _env_int("RETRY_DELAY", 20)
@@ -33,8 +37,8 @@ REST_DB_TIMEOUT_SECONDS: int = _env_int("REST_DB_TIMEOUT_SECONDS", 30)
 
 def validate_config() -> None:
     if not OPENROUTER_API_KEY:
-        raise ValueError("OPENROUTER_API_KEY is not set in .env")
+        raise ValueError("OPENROUTER_API_KEY is not set")
     if not OPENROUTER_MODEL:
-        raise ValueError("OPENROUTER_MODEL is not set in .env")
-    if not POSTGRES_URL:
-        raise ValueError("POSTGRES_URL is not set in .env")
+        raise ValueError("OPENROUTER_MODEL is not set")
+    if not SUPABASE_DB_URL:
+        raise ValueError("POSTGRES_URL or SUPABASE_DB_URL is not set")
