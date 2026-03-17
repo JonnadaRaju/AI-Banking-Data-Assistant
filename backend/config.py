@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -14,9 +16,21 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
 OPENAI_BASE_URL: str = "https://openrouter.ai/api/v1"
+
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").strip()
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+
+USE_OLLAMA: bool = _env_bool("USE_OLLAMA", False)
 
 # DB — supports both POSTGRES_URL and SUPABASE_DB_URL
 POSTGRES_URL: str = os.getenv("POSTGRES_URL", "").strip()
@@ -36,9 +50,13 @@ REST_DB_TIMEOUT_SECONDS: int = _env_int("REST_DB_TIMEOUT_SECONDS", 30)
 
 
 def validate_config() -> None:
-    if not OPENROUTER_API_KEY:
-        raise ValueError("OPENROUTER_API_KEY is not set")
-    if not OPENROUTER_MODEL:
-        raise ValueError("OPENROUTER_MODEL is not set")
+    if USE_OLLAMA:
+        if not OLLAMA_MODEL and not OPENROUTER_API_KEY:
+            raise ValueError("OLLAMA_MODEL is not set and no OpenRouter fallback is configured")
+    else:
+        if not OPENROUTER_API_KEY:
+            raise ValueError("OPENROUTER_API_KEY is not set")
+        if not OPENROUTER_MODEL:
+            raise ValueError("OPENROUTER_MODEL is not set")
     if not SUPABASE_DB_URL:
         raise ValueError("POSTGRES_URL or SUPABASE_DB_URL is not set")
